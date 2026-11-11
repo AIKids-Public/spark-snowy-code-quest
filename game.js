@@ -6,18 +6,11 @@
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const ARROW = { up: '⬆️', down: '⬇️', left: '⬅️', right: '➡️' };
   const TILE = { P: '🎁', T: '🎄', M: '⛄', I: '🧊', G: '🛷' };
-  const BONK_SIMPLE = {
-    edge: 'Oops! That is the edge. Try a new way.',
-    tree: 'Bonk! A tree 🎄 is in the way. Try again!',
-    snowman: 'Oof! A snowman ⛄ is in the way. Try again!',
-    ice: 'Clunk! Ice 🧊! Tap ✨ Melt first.',
-  };
-  const BONK = {
-    edge: 'Whoops! Spark nearly walked off the edge of the map.',
-    tree: 'Bonk! Spark bumped into a Christmas tree 🎄.',
-    snowman: 'Oof! Spark walked into a snowman ⛄. Sorry, snowman!',
-    ice: 'Clunk! That\'s solid ice 🧊. Stand next to it and melt it first.',
-  };
+  const t = (k, p) => I18N.t(k, p);
+  /* "simple" text variant for ages 4–8 lives under key + '.s' */
+  const ts = (simple, k, p) => t(simple ? k + '.s' : k, p);
+  const tierName = id => t(`tier.${id}.name`), tierBlurb = id => t(`tier.${id}.blurb`);
+  const errText = e => (e.key ? t(e.key, e.params) : e.message);
 
   /* ---------------- progress ---------------- */
   const SAVE = 'sparkSnowyCodeQuest.v1';
@@ -55,7 +48,8 @@
       tone(f, i === 2 || i === 5 ? 0.35 : 0.16, 'triangle', 0.1, [0, .18, .36, .72, .9, 1.08, 1.44, 1.62, 1.8, 1.98, 2.16][i])),
   };
   $('#musicBtn').onclick = () => window.SparkMusic && SparkMusic.toggle();
-  $('#soundBtn').onclick = () => { soundOn = !soundOn; $('#soundBtn').textContent = soundOn ? '🔊 Sound' : '🔇 Muted'; };
+  const drawSoundBtn = () => { $('#soundBtn').textContent = soundOn ? t('btn.sound') : t('btn.muted'); };
+  $('#soundBtn').onclick = () => { soundOn = !soundOn; drawSoundBtn(); };
 
   /* ---------- voice: pick the softest, friendliest female English voice on this device ---------- */
   // Ordered best-first. Covers macOS/iOS, Windows, Chrome/Edge (Google & Microsoft online voices) and Android.
@@ -70,25 +64,55 @@
     /female|woman/i,
   ];
   const AVOID = /^(?:Grandma|Grandpa|Whisper|Bad News|Good News|Bahh|Bells|Boing|Bubbles|Cellos|Wobble|Jester|Organ|Superstar|Trinoids|Zarvox|Albert|Fred|Junior|Ralph|Rocko|Eddy|Reed|Daniel|Arthur|Oliver|Rishi|Aman|Gordon|Lee|Thomas|Microsoft (David|Mark|George|Ryan|Guy|Christopher|Eric|Brian))\b/i;   // match whole names at the start (so 'Aman' doesn't hit 'Samantha')
+  /* Soft, female voices for the other languages, best-first (macOS/iOS, Edge neural, Chrome/Google, Windows, Android). */
+  const VOICE_PREFS_BY_LANG = {
+    zh: [/Microsoft (Xiaoxiao|Xiaoyi|Xiaohan|Xiaomo).*Online/i, /^Google (普通话|Mandarin)/i, /^(Tingting|Ting-Ting|Lili|Yu-shu|Meijia|Mei-Jia)\b/i, /^(Flo|Shelley|Sandy)/i, /Microsoft (Huihui|Yaoyao)/i, /female|女/i],
+    hi: [/Microsoft (Swara).*Online/i, /^Google हिन्दी/i, /^Google Hindi/i, /^(Lekha|Kiyara|Soumya)\b/i, /Microsoft (Kalpana)/i, /female/i],
+    es: [/Microsoft (Elvira|Dalia|Paloma|Elena|Salome|Ximena).*Online/i, /^Google español/i, /^(Mónica|Monica|Paulina|Marisol|Angelica|Soledad)\b/i, /^(Flo|Shelley|Sandy)/i, /Microsoft (Helena|Laura|Sabina)/i, /female|mujer/i],
+    fr: [/Microsoft (Denise|Eloise|Vivienne|Sylvie|Ariane).*Online/i, /^Google français/i, /^(Amélie|Amelie|Audrey|Aurélie|Marie)\b/i, /^(Flo|Shelley|Sandy)/i, /Microsoft (Hortense|Julie|Caroline)/i, /female|femme/i],
+    ar: [/Microsoft (Zariyah|Salma|Fatima|Amany|Laila|Sana|Mouna).*Online/i, /^Google العربية/i, /^(Mariam|Laila|Amira|Tarik)\b/i, /Microsoft (Hoda|Naayf)/i, /female/i],
+  };
+  const AVOID_BY_LANG = {
+    zh: /^(Sinji|Li-mu|Kangkang|Yunxi|Yunjian|Yunyang)\b|Microsoft (Kangkang|Yunxi|Yunjian|Yunyang)/i,
+    hi: /^(Rishi|Aman)\b|Microsoft (Hemant|Madhur)/i,
+    es: /^(Jorge|Diego|Juan|Eddy|Reed|Rocko|Grandpa|Grandma)\b|Microsoft (Pablo|Raul|Alvaro|Jorge)/i,
+    fr: /^(Thomas|Jacques|Eddy|Reed|Rocko|Grandpa|Grandma|Nicolas)\b|Microsoft (Paul|Henri|Claude)/i,
+    ar: /^(Majed|Maged|Tarik)\b|Microsoft (Naayf|Hamed|Shakir)/i,
+  };
   let voice = null;
   function pickVoice() {
+    voice = null;
     if (!('speechSynthesis' in window)) return;
-    const all = speechSynthesis.getVoices().filter(v => /^en([-_]|$)/i.test(v.lang) && !AVOID.test(v.name));
-    for (const re of VOICE_PREFS) {
+    const L = I18N.lang, re0 = new RegExp('^' + L + '([-_]|$)', 'i');
+    const avoid = L === 'en' ? AVOID : (AVOID_BY_LANG[L] || /^$/);
+    const loc = String(I18N.locale || '').toLowerCase(), norm = l => String(l).toLowerCase().replace('_', '-');
+    const all = speechSynthesis.getVoices().filter(v => re0.test(v.lang) && !avoid.test(v.name))
+      .sort((a, b) => (norm(b.lang) === loc) - (norm(a.lang) === loc));   // exact region first (e.g. zh-CN before zh-TW)
+    for (const re of (L === 'en' ? VOICE_PREFS : VOICE_PREFS_BY_LANG[L] || [])) {
       const hits = all.filter(v => re.test(v.name));
       // prefer enhanced/premium/neural variants of the same voice
       if (hits.length) { voice = hits.find(v => /enhanced|premium|neural|natural|online/i.test(v.name)) || hits[0]; return; }
     }
-    voice = all[0] || null;
+    voice = all[0] || null;   // a voice in the right language, even if we couldn't confirm it's female
+    // last resort: any voice in this language (even one we'd normally skip) beats reading it in the wrong accent
+    if (!voice) voice = speechSynthesis.getVoices().find(v => re0.test(v.lang)) || null;
+  }
+  let noVoiceShown = '';
+  function noVoiceNotice() {
+    if (noVoiceShown === I18N.lang) return; noVoiceShown = I18N.lang;
+    const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = '🔈 ' + t('voice.none');
+    document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.addEventListener('voiceschanged', pickVoice); }
 
   function speak(text) {
     if (!('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/[^\p{L}\p{N}\s.,!?'’-]/gu, ''));
+    const u = new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g, '').replace(/[^\p{L}\p{M}\p{N}\s.,!?'’\-。，！？、؟،।]/gu, ''));
     if (!voice) pickVoice();
     if (voice) { u.voice = voice; u.lang = voice.lang; }
+    else if (I18N.lang !== 'en' && speechSynthesis.getVoices().length) { noVoiceNotice(); return; }   // no voice for this language here
+    else u.lang = I18N.locale;
     u.rate = 0.88;      // a little slower: calm and easy to follow
     u.pitch = 1.05;     // just a touch brighter — high pitch sounds squeaky, not soft
     u.volume = 0.9;
@@ -167,41 +191,41 @@
 
   /* ---------------- navigation ---------------- */
   let cleanup = null;
-  function go(fn) { if (cleanup) { cleanup(); cleanup = null; } closeModal(); if ('speechSynthesis' in window) speechSynthesis.cancel(); fn(); scrollTo(0, 0); }
+  let go = function (fn) { if (cleanup) { cleanup(); cleanup = null; } closeModal(); if ('speechSynthesis' in window) speechSynthesis.cancel(); fn(); scrollTo(0, 0); };
   $('#homeBtn').onclick = () => go(titleScreen);
 
   function titleScreen() {
+    const t_ = t;
     $('#homeBtn').classList.add('hidden');
     const tiers = Object.values(TIERS);
     screen.innerHTML = `
       <section class="title">
         <div class="hero">
-          <img src="spark.png" alt="Spark, a friendly blue robot reading a book" id="heroSpark">
+          <img src="spark.png" alt="${esc(t('alt.spark'))}" id="heroSpark">
         </div>
-        <h2>Spark's Snowy Code Quest</h2>
-        <p>A Christmas Eve blizzard has scattered Santa's presents across the North Pole! Help <b>Spark</b> rescue them by
-           <b>asking Frosty the AI helper</b> clearly and kindly, then <b>coding</b> Spark's path to the sleigh.</p>
-        <p>🗣️ Ask well &nbsp;→&nbsp; 🧩 Code a path &nbsp;→&nbsp; 🎁 Save the presents</p>
+        <h2>${t('app.title')}</h2>
+        <p>${t('home.intro')}</p>
+        <p>${t('home.steps')}</p>
       </section>
       <div class="lights" aria-hidden="true">${Array.from({ length: 18 }, (_, i) => `<i style="animation-delay:${(i % 6) * 0.25}s"></i>`).join('')}</div>
       <div class="tiers">
-        ${tiers.map(t => {
-          const total = t.missions.reduce((a, _, i) => a + starsOf(t.id, i), 0);
-          return `<button class="tier" data-tier="${t.id}">
-            <div class="big wiggle">${t.emoji}</div>
-            <span class="ages">Ages ${t.ages}</span>
-            <h3>${t.name}</h3>
-            <p>${t.blurb}</p>
-            ${t.simple ? '<p class="parent">👨‍👩‍👧 Little ones may like a grown-up to help!</p>' : ''}
-            <div class="stars">⭐ ${total} / ${t.missions.length * 3}${tierDone(t.id) ? ' &nbsp;🏆' : ''}</div>
+        ${tiers.map(tt => {
+          const total = tt.missions.reduce((a, _, i) => a + starsOf(tt.id, i), 0);
+          return `<button class="tier" data-tier="${tt.id}">
+            <div class="big wiggle">${tt.emoji}</div>
+            <span class="ages">${t_('tier.ages', { ages: tt.ages })}</span>
+            <h3>${tierName(tt.id)}</h3>
+            <p>${tierBlurb(tt.id)}</p>
+            ${tt.simple ? `<p class="parent">${t_('home.grownup')}</p>` : ''}
+            <div class="stars">⭐ ${total} / ${tt.missions.length * 3}${tierDone(tt.id) ? ' &nbsp;🏆' : ''}</div>
           </button>`;
         }).join('')}
       </div>
       <button class="bonus pop-in" id="cardBtn">
         <span class="bonus-icon wiggle">🎨</span>
-        <span><span class="bonus-tag">⭐ BONUS</span><b>Holiday Card Maker</b>
-        <span>Answer 5 fun questions to design your own Christmas card — then save it as a picture!</span></span>
-        <span class="bonus-go">Make a card ➜</span>
+        <span><span class="bonus-tag">${t('bonus.tag')}</span><b>${t('bonus.title')}</b>
+        <span>${t('bonus.desc')}</span></span>
+        <span class="bonus-go">${t('bonus.go')}</span>
       </button>`;
     screen.querySelectorAll('.tier').forEach(b => b.onclick = () => go(() => missionList(b.dataset.tier)));
     $('#cardBtn').onclick = () => go(cardScreen);
@@ -210,7 +234,7 @@
 
   function tierStars(tierId) { return TIERS[tierId].missions.reduce((a, _, i) => a + starsOf(tierId, i), 0); }
   const finaleHooks = () => ({
-    home: () => go(titleScreen), card: () => go(cardScreen), sfx: k => sfx[k] && sfx[k](), tone, speak, confetti,
+    home: () => go(titleScreen), card: () => go(cardScreen), sfx: k => sfx[k] && sfx[k](), tone, speak, confetti, t,
   });
   function openFinale(tierId) {
     missionList(tierId);                                   // sits underneath, so closing lands somewhere sensible
@@ -225,40 +249,41 @@
   function cardScreen() {
     $('#homeBtn').classList.remove('hidden');
     screen.innerHTML = `<div class="card" style="margin-bottom:16px;text-align:center">
-      <h2 style="margin:0 0 10px">🎨 Who is making the card?</h2>
+      <h2 style="margin:0 0 10px">${t('cardpick.title')}</h2>
       <div class="row" style="justify-content:center">
-        <button class="btn" data-age="simple">❄️ Ages 4–8</button>
-        <button class="btn" data-age="full">🦌 Ages 9–12</button>
-        <button class="btn" data-age="full">⭐ Ages 13–16</button>
+        <button class="btn" data-age="simple">❄️ ${t('tier.ages', { ages: '4–8' })}</button>
+        <button class="btn" data-age="full">🦌 ${t('tier.ages', { ages: '9–12' })}</button>
+        <button class="btn" data-age="full">⭐ ${t('tier.ages', { ages: '13–16' })}</button>
       </div>
-      <p class="parent" style="margin-top:14px">👨‍👩‍👧 Little ones may like a grown-up to help!</p></div>`;
+      <p class="parent" style="margin-top:14px">${t('home.grownup')}</p></div>`;
     screen.querySelectorAll('[data-age]').forEach(b => b.onclick = () => CardMaker.open(screen, {
       simple: b.dataset.age === 'simple',
-      hooks: { home: () => go(titleScreen), sfx: k => sfx[k] && sfx[k](), speak, confetti, burstAt },
+      hooks: { home: () => go(titleScreen), sfx: k => sfx[k] && sfx[k](), speak, confetti, burstAt, t },
     }));
   }
+
+  /* first sentence of a story, in any script (! ? . 。 ！ ？ ।) */
+  function firstSentence(s) { const m = String(s).match(/^.*?[!?.。！？।؟](?=\s|$)/u); return m ? m[0] : s; }
 
   function missionList(tierId) {
     const tier = TIERS[tierId];
     $('#homeBtn').classList.remove('hidden');
     screen.innerHTML = `
       <div class="card" style="margin-bottom:16px">
-        <h2 style="margin:0">${tier.emoji} ${tier.name} <span class="ages pill" style="background:var(--sky);font-size:.9rem">Ages ${tier.ages}</span></h2>
-        ${tier.simple ? `<p class="simple" style="margin:8px 0 0">🗣️ Ask Frosty for help.<br>➡️ Tap arrows to move Spark.<br>🎁 Get all the gifts. Then go to the sleigh 🛷!</p>
-        <div class="parentNote"><span class="pn-icon">👨‍👩‍👧</span><div><b>Grown-ups:</b> younger children may enjoy playing this with you.
-          Read the words together, or tap <b>🔈 Read to me</b> to hear them out loud.</div></div>` :
-        `<p style="margin:8px 0 0">${tier.blurb} Each mission has two parts: first <b>ask Frosty the AI</b> for help, then <b>code Spark's path</b>.
-        Collect every 🎁 and finish on the 🛷. Use fewer ${tier.editor === 'text' ? 'lines' : 'blocks'} to earn more ⭐!</p>`}
-        ${tierDone(tierId) ? `<div class="donebar"><span>🏆 <b>${tier.simple ? 'You did them all!' : 'Quest complete!'}</b></span>
-          <button class="btn green" id="lCert">📜 ${tier.simple ? 'My certificate' : 'Get certificate'}</button>
-          <button class="btn ghost" id="lFinale">🛷 ${tier.simple ? 'See the ending' : 'Watch finale'}</button></div>` : ''}
+        <h2 style="margin:0">${tier.emoji} ${tierName(tierId)} <span class="ages pill" style="background:var(--sky);font-size:.9rem">${t('tier.ages', { ages: tier.ages })}</span></h2>
+        ${tier.simple ? `<p class="simple" style="margin:8px 0 0">${t('list.simple')}</p>
+        <div class="parentNote"><span class="pn-icon">👨‍👩‍👧</span><div>${t('list.parent')}</div></div>` :
+        `<p style="margin:8px 0 0">${t('list.full', { blurb: tierBlurb(tierId), unit: t(tier.editor === 'text' ? 'unit.lines' : 'unit.blocks') })}</p>`}
+        ${tierDone(tierId) ? `<div class="donebar"><span>🏆 <b>${ts(tier.simple, 'list.done')}</b></span>
+          <button class="btn green" id="lCert">${ts(tier.simple, 'list.cert')}</button>
+          <button class="btn ghost" id="lFinale">${ts(tier.simple, 'list.finale')}</button></div>` : ''}
       </div>
       <div class="missions">
         ${tier.missions.map((m, i) => {
           const open = unlocked(tierId, i);
           return `<button class="mission pop-in ${open ? '' : 'locked'}" style="animation-delay:${i * 0.08}s" data-i="${i}" ${open ? '' : 'aria-disabled="true"'}>
             <div class="num">${open ? i + 1 : '🔒'}</div>
-            <div><h3>${esc(m.title)}</h3><div>${open ? esc(m.story.split('!')[0]) + '!' : (tier.simple ? 'Win the one before first! 🔒' : 'Finish the mission before to unlock')}</div></div>
+            <div><h3>${esc(m.title)}</h3><div>${open ? esc(firstSentence(m.story)) : ts(tier.simple, 'list.locked')}</div></div>
             <div class="stars">${starStr(starsOf(tierId, i))}</div>
           </button>`;
         }).join('')}
@@ -274,17 +299,17 @@
   function playMission(tierId, mi) {
     const tier = TIERS[tierId], m = tier.missions[mi], lv = parseMap(m.map);
     const kind = m.prompt.kind;
-    const unit = tier.editor === 'text' ? 'commands' : 'blocks';
-    let fails = 0, running = false, timers = [];
+    const unit = t(tier.editor === 'text' ? 'unit.commands' : 'unit.blocks');
+    let fails = 0, running = false, timers = [], resetT = [];
     $('#homeBtn').classList.remove('hidden');
 
     screen.innerHTML = `
       <div class="hud">
-        <button class="pill" id="backBtn">⬅ ${tier.simple ? 'Back' : 'Missions'}</button>
-        <span class="pill">${tier.emoji} ${tier.name}</span>
-        <span class="pill">Mission ${mi + 1}: ${esc(m.title)}</span>
+        <button class="pill" id="backBtn">${ts(tier.simple, 'hud.back')}</button>
+        <span class="pill">${tier.emoji} ${tierName(tierId)}</span>
+        <span class="pill">${t('hud.mission', { n: mi + 1, title: esc(m.title) })}</span>
         <span class="pill">🎁 <span id="gotN">0</span> / ${lv.presents.length}</span>
-        <span class="pill">${tier.simple ? `⭐⭐⭐ = ${m.par} taps` : `⭐⭐⭐ in ${m.par} ${unit} or fewer`}</span>
+        <span class="pill">${ts(tier.simple, 'hud.par', { par: m.par, unit })}</span>
       </div>
       <div class="play">
         <div class="boardwrap">
@@ -297,7 +322,8 @@
     /* ---------- board ---------- */
     const board = $('#board');
     board.style.setProperty('--ar', lv.w / lv.h);
-    board.style.gridTemplateColumns = `repeat(${lv.w}, 1fr)`;
+    board.style.gridTemplateColumns = `repeat(${lv.w}, minmax(0, 1fr))`;
+    board.style.gridTemplateRows = `repeat(${lv.h}, minmax(0, 1fr))`;   // equal rows: emoji can't stretch a row any more
     board.style.setProperty('--spd', tier.speed * 0.9 + 'ms');
     const cells = {};
     m.map.forEach((row, y) => [...row].forEach((c, x) => {
@@ -308,34 +334,61 @@
     }));
     const spark = document.createElement('div');
     spark.className = 'spark idle'; spark.innerHTML = '<img src="spark.png" alt="Spark">';
+    board.dir = 'ltr';   // the map is a grid with real left/right — keep it the same in right-to-left languages
     board.appendChild(spark);
     let veil = null;
     if (kind === 'fog' || kind === 'dark') {
       veil = document.createElement('div');
       veil.className = 'veil ' + kind;
       veil.innerHTML = kind === 'fog'
-        ? `<div><span class="big drift">🌨️</span>${tier.simple ? 'Too much snow!<br>Ask Frosty for help!' : 'The blizzard is hiding the map…<br>Ask Frosty for help!'}</div>`
-        : `<div><span class="big drift">🌑</span>${tier.simple ? 'Too dark!<br>Ask Frosty for help!' : 'It\'s too dark to see…<br>Ask Frosty for help!'}</div>`;
+        ? `<div><span class="big drift">🌨️</span>${ts(tier.simple, 'veil.fog')}</div>`
+        : `<div><span class="big drift">🌑</span>${ts(tier.simple, 'veil.dark')}</div>`;
       board.appendChild(veil);
     }
+    const cellW = () => board.clientWidth / lv.w, cellH = () => board.clientHeight / lv.h;
     function layout() {
-      const cs = board.clientWidth / lv.w;
+      const cs = Math.min(cellW(), cellH());
       board.style.fontSize = (cs * 0.6).toFixed(2) + 'px';   // cells inherit this (set directly: more reliable than a CSS variable)
-      spark.style.width = spark.style.height = cs + 'px';
+      spark.style.width = cellW() + 'px'; spark.style.height = cellH() + 'px';
     }
     function placeSpark(x, y, instant) {
-      const cs = board.clientWidth / lv.w;
       if (instant) spark.style.transition = 'none';
-      spark.style.left = x * cs + 'px'; spark.style.top = y * cs + 'px';
+      spark.style.left = x * cellW() + 'px'; spark.style.top = y * cellH() + 'px';
       if (instant) { spark.offsetWidth; spark.style.transition = ''; }
       spark.dataset.x = x; spark.dataset.y = y;
     }
     const onResize = () => { layout(); placeSpark(+spark.dataset.x, +spark.dataset.y, true); };
     addEventListener('resize', onResize);
-    cleanup = () => { removeEventListener('resize', onResize); timers.forEach(clearTimeout); };
+    cleanup = () => { removeEventListener('resize', onResize); timers.forEach(clearTimeout); resetT.forEach(clearTimeout); };
     layout(); placeSpark(lv.start.x, lv.start.y, true);
 
+    /* After a failed run, count down on the board and put Spark back at the start by itself.
+       The program is kept, so the player only has to fix it and press Go again. */
+    const RESET_SECS = 3;
+    function cancelReset() {
+      resetT.forEach(clearTimeout); resetT = [];
+      board.querySelectorAll('.resetnote').forEach(n => n.remove());
+    }
+    function boardNote(text, cls = '') {
+      const n = document.createElement('div');
+      n.className = 'resetnote ' + cls; n.dir = I18N.dir; n.setAttribute('role', 'status'); n.textContent = text;
+      board.appendChild(n); return n;
+    }
+    function scheduleReset() {
+      cancelReset();
+      const note = boardNote('');
+      let n = RESET_SECS;
+      const tick = () => {
+        if (n > 0) { note.textContent = '🔄 ' + ts(tier.simple, 'reset.msg', { n }); n--; resetT.push(setTimeout(tick, 1000)); return; }
+        resetBoard();                                   // also clears the countdown note
+        boardNote('✅ ' + ts(tier.simple, 'reset.done'), 'done');
+        resetT.push(setTimeout(cancelReset, 2200));
+      };
+      tick();
+    }
+
     function resetBoard() {
+      cancelReset();
       timers.forEach(clearTimeout); timers = [];
       Object.values(cells).forEach(c => c.classList.remove('got', 'melted', 'trail'));
       spark.classList.remove('bonk', 'happy', 'walk'); spark.classList.add('idle');
@@ -351,28 +404,27 @@
       <h2>📖 ${esc(m.title)}</h2>
       <p class="story ${tier.simple ? 'simple' : ''}">${esc(m.story)}</p>
       ${tier.simple ? `<div class="goalcard simple">
-          <div><span class="bigemoji twinkle">🎁</span>Get all the gifts</div>
+          <div><span class="bigemoji twinkle">🎁</span>${t('story.gifts.s')}</div>
           <div class="arrowgo">➜</div>
-          <div><span class="bigemoji sleighbob">🛷</span>Go to the sleigh</div>
+          <div><span class="bigemoji sleighbob">🛷</span>${t('story.sleigh.s')}</div>
         </div>
-        <p class="simple">Do not bump into 🎄 ⛄ 🧊</p>
-        <p class="parent">👨‍👩‍👧 You can ask a grown-up to help you read.</p>` :
-      `<p class="story">Your goal: collect <b>every 🎁</b>, then finish on <b>Santa's sleigh 🛷</b>.<br>
-      Watch out for 🎄 trees, ⛄ snowmen and 🧊 ice!</p>`}
+        <p class="simple">${t('story.avoid.s')}</p>
+        <p class="parent">${t('story.read.s')}</p>` :
+      `<p class="story">${t('story.goal')}</p>`}
       <div class="row">
-        <button class="btn" id="startBtn">Let's go! ✨</button>
-        ${tierId === 'young' ? '<button class="btn ghost" id="readBtn">🔈 Read to me</button>' : ''}
+        <button class="btn" id="startBtn">${t('btn.go')}</button>
+        ${tierId === 'young' ? `<button class="btn ghost" id="readBtn">${t('btn.read')}</button>` : ''}
       </div>`;
     $('#startBtn').onclick = promptStep;
-    if ($('#readBtn')) $('#readBtn').onclick = () => speak(m.story + ' Get all the gifts. Then go to the sleigh. Do not bump into trees, snowmen or ice.');
+    if ($('#readBtn')) $('#readBtn').onclick = () => speak(m.story + ' ' + t('speak.story'));
 
     /* ---------- step 2: prompt Frosty ---------- */
     function promptStep() {
       const intro = tier.simple
-        ? `<h2>🗣️ Step 1: Ask Frosty</h2>
-           ${frostySays(`<span class="simple">Hi! I am <b>Frosty</b>. I am a helper robot. 🤖<br>${esc(m.prompt.question)}</span>`)}`
-        : `<h2>🗣️ Step 1: Ask Frosty the AI</h2>
-           ${frostySays(`Hi, I'm <b>Frosty</b>, the North Pole's AI helper! ${esc(m.prompt.question)}`)}`;
+        ? `<h2>${t('p.h.s')}</h2>
+           ${frostySays(`<span class="simple">${t('p.hi.s')}<br>${esc(m.prompt.question)}</span>`)}`
+        : `<h2>${t('p.h')}</h2>
+           ${frostySays(`${t('p.hi')} ${esc(m.prompt.question)}`)}`;
       if (tierId === 'young') youngPrompt(intro);
       else if (tierId === 'middle') middlePrompt(intro);
       else teenPrompt(intro);
@@ -381,11 +433,11 @@
     function youngPrompt(intro) {
       const opts = shuffle(m.prompt.options);
       panel.innerHTML = intro + `
-        <p class="simple"><b>Tap the best one:</b> 👇</p>
+        <p class="simple">${t('p.tap.s')}</p>
         <div class="options">${opts.map((o, i) => `<button class="opt simple pop-in" style="animation-delay:${i * 0.12}s" data-i="${i}"><span class="e">${o.emoji}</span>${esc(o.text)}</button>`).join('')}</div>
         <div id="fb"></div>
-        <div class="row"><button class="btn ghost" id="readBtn">🔈 Read to me</button></div>`;
-      $('#readBtn').onclick = () => speak(m.prompt.question + ' ' + opts.map((o, i) => `Number ${i + 1}: ${o.text}`).join(' '));
+        <div class="row"><button class="btn ghost" id="readBtn">${t('btn.read')}</button></div>`;
+      $('#readBtn').onclick = () => speak(m.prompt.question + ' ' + opts.map((o, i) => t('speak.number', { n: i + 1, text: o.text })).join(' '));
       panel.querySelectorAll('.opt').forEach(b => b.onclick = () => {
         const o = opts[+b.dataset.i];
         if (o.good) { sfx.good(); burstAt(b, ['⭐', '✨', '💙'], 14, 90); speak(o.feedback); promptSuccess(esc(o.feedback)); }
@@ -397,27 +449,27 @@
       const rows = m.prompt.rows.map(r => ({ ...r, chips: shuffle(r.chips) }));
       const pick = rows.map(() => null);
       panel.innerHTML = intro + `
-        <p><b>Build your prompt — pick one piece from each row.</b> Good prompts say <i>who</i>, <i>what</i> and <i>why</i>.</p>
+        <p>${t('p.build')}</p>
         <div class="builder">${rows.map((r, ri) => `
           <div class="label">${ri + 1}. ${esc(r.label)}</div>
           <div class="chips">${r.chips.map((c, ci) => `<button class="chip" data-r="${ri}" data-c="${ci}">${esc(c.text)}</button>`).join('')}</div>`).join('')}
         </div>
-        <div class="assembled" id="asm">Your prompt will appear here…</div>
-        <div class="row"><button class="btn" id="sendBtn" disabled>📨 Send to Frosty</button></div>
+        <div class="assembled" id="asm">${t('p.asm')}</div>
+        <div class="row"><button class="btn" id="sendBtn" disabled>${t('p.send')}</button></div>
         <div id="fb"></div>`;
       const render = () => {
         panel.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', pick[+b.dataset.r] === +b.dataset.c));
         const parts = pick.map((c, ri) => c == null ? '…' : rows[ri].chips[c].text);
-        $('#asm').textContent = pick.some(c => c != null) ? '“' + parts.join(' ') + '”' : 'Your prompt will appear here…';
+        $('#asm').textContent = pick.some(c => c != null) ? t('p.q1') + parts.join(t('p.joiner')) + t('p.q2') : t('p.asm');
         $('#sendBtn').disabled = pick.some(c => c == null);
       };
       panel.querySelectorAll('.chip').forEach(b => b.onclick = () => { pick[+b.dataset.r] = +b.dataset.c; render(); $('#fb').innerHTML = ''; });
       $('#sendBtn').onclick = () => {
         const bad = pick.map((c, ri) => rows[ri].chips[c]).filter(c => !c.good);
-        if (!bad.length) { sfx.good(); promptSuccess('That\'s a great prompt! You told me <b>who</b> you\'re asking, <b>exactly what</b> you need, and <b>why</b>. Clear prompts get clear answers.'); }
+        if (!bad.length) { sfx.good(); promptSuccess(t('p.great')); }
         else {
           sfx.bad();
-          $('#fb').innerHTML = frostySays(`Hmm, I'm not quite sure what you need. ${bad.length > 1 ? `<b>${bad.length} pieces</b> could be better. Here's one:` : ''}<br>💡 ${esc(bad[0].feedback)}`, 'bad');
+          $('#fb').innerHTML = frostySays(`${t('p.unsure')} ${bad.length > 1 ? t('p.pieces', { n: bad.length }) : ''}<br>💡 ${esc(bad[0].feedback)}`, 'bad');
         }
       };
     }
@@ -425,47 +477,38 @@
     function teenPrompt(intro) {
       const tw = m.prompt.taskWords;
       panel.innerHTML = intro + `
-        <p>Write your own prompt. Frosty checks it against a <b>prompt-engineering checklist</b>: you need the
-        <b>🎯 clear task</b> plus at least <b>3</b> of the others.</p>
-        <textarea id="pText" rows="4" placeholder="e.g. Frosty, please…" aria-label="Your prompt"></textarea>
-        <div class="row"><button class="btn" id="sendBtn">📨 Send to Frosty</button></div>
+        <p>${t('p.write')}</p>
+        <textarea id="pText" rows="4" placeholder="${esc(t('p.placeholder'))}" aria-label="${esc(t('p.aria'))}"></textarea>
+        <div class="row"><button class="btn" id="sendBtn">${t('p.send')}</button></div>
         <ul class="checklist" id="chk"></ul>
         <div id="fb"></div>`;
       const ta = $('#pText');
       const draw = res => $('#chk').innerHTML = res.checks.map(c =>
-        `<li class="${res.tried ? (c.ok ? 'ok' : 'no') : ''}">${res.tried ? (c.ok ? '✅' : '⬜') : c.icon} ${esc(c.label)}${c.required ? ' <b>(required)</b>' : ''}</li>`).join('');
-      draw({ ...scorePrompt('', tw), tried: false });
+        `<li class="${res.tried ? (c.ok ? 'ok' : 'no') : ''}">${res.tried ? (c.ok ? '✅' : '⬜') : c.icon} ${esc(t('chk.' + c.id))}${c.required ? ` <b>${t('p.required')}</b>` : ''}</li>`).join('');
+      draw({ ...scorePrompt('', tw, I18N.rubric()), tried: false });
       ta.focus({ preventScroll: true });
       $('#sendBtn').onclick = () => {
         const text = ta.value.trim();
         if (!text) { ta.focus(); return; }
-        const res = scorePrompt(text, tw);
+        const res = scorePrompt(text, tw, I18N.rubric());
         draw({ ...res, tried: true });
-        if (res.unkind) { sfx.bad(); $('#fb').innerHTML = frostySays('Ouch! I\'ll always try my best, but kind words make for a better team. Could you rephrase that?', 'bad'); return; }
+        if (res.unkind) { sfx.bad(); $('#fb').innerHTML = frostySays(t('p.unkind'), 'bad'); return; }
         if (res.pass) {
           sfx.good();
-          promptSuccess(`Excellent prompt engineering — ${res.score}/5 on the checklist!${res.polite ? ' And thanks for being polite 😊.' : ''}
-            <br><br><i>Your prompt:</i> “${esc(text)}”`);
+          promptSuccess(`${t('p.excellent', { score: res.score })}${res.polite ? t('p.polite') : ''}
+            <br><br><i>${t('p.yours')}</i> ${t('p.q1')}${esc(text)}${t('p.q2')}`);
         } else {
           sfx.bad();
           const miss = res.checks.filter(c => !c.ok);
           $('#fb').innerHTML = frostySays(!res.checks[0].ok
-            ? `I can't tell what you want me to <b>do</b>. Name the task clearly (what should happen to the ${{ fog: 'fog', dark: 'darkness', melt: 'ice' }[kind]}?).`
-            : `Getting there! Try adding: ${miss.map(c => c.icon + ' ' + c.label.split(' —')[0].toLowerCase()).join(', ')}.`, 'bad');
+            ? t('p.notask', { thing: t('thing.' + kind) })
+            : t('p.tryadd', { list: miss.map(c => c.icon + ' ' + t('chk.' + c.id + '.short')).join(t('p.sep')) }), 'bad');
         }
       };
     }
 
     function promptSuccess(feedback) {
-      const reward = tier.simple ? {
-        fog: 'Whoosh! 🌬️ The snow is gone!',
-        dark: 'Ta-da! 💡 The lights are on!',
-        melt: 'Here is a magic power! ✨ Tap <b>✨ Melt</b> next to the ice. It will melt!',
-      }[kind] : {
-        fog: 'Whoooosh! 🌬️ I\'ve blown the blizzard away — now you can see the whole map!',
-        dark: 'Ta-da! 💡 I\'ve switched on the northern lights — now you can see the whole map!',
-        melt: 'I\'ve given Spark a new command: <b>✨ Melt</b>. It melts any 🧊 ice right next to Spark (up, down, left or right).',
-      }[kind];
+      const reward = ts(tier.simple, 'r.' + kind);
       if (veil) {
         veil.classList.add('gone');
         const v = veil; setTimeout(() => v.remove(), 1300);
@@ -473,10 +516,10 @@
         burstAt(board, kind === 'fog' ? ['🌬️', '❄️', '☁️'] : ['💡', '✨', '🌟'], 18, Math.min(r.width, r.height) * 0.45);
       } else burstAt(board, ['✨', '🔥', '⭐'], 14, 120);
       if (kind === 'dark' && !calm()) board.classList.add('aurora');
-      panel.innerHTML = `<h2>🗣️ Step 1: Ask Frosty${tier.simple ? '' : ' the AI'} ✅</h2>
+      panel.innerHTML = `<h2>${ts(tier.simple, 'p.h')} ✅</h2>
         <div class="pop-in">${frostySays(tier.simple ? `<span class="simple">${feedback}</span>` : feedback, 'good')}</div>
         <div class="pop-in" style="animation-delay:.3s">${frostySays(tier.simple ? `<span class="simple">${reward}</span>` : reward, 'good')}</div>
-        <div class="row"><button class="btn green pulse" id="codeBtn">${tier.simple ? 'Next! ➡️' : 'Start coding! 🧩'}</button></div>`;
+        <div class="row"><button class="btn green pulse" id="codeBtn">${ts(tier.simple, 'btn.code')}</button></div>`;
       if (tier.simple) speak(reward.replace(/<[^>]+>/g, ''));
       $('#codeBtn').focus({ preventScroll: true });
       $('#codeBtn').onclick = codeStep;
@@ -484,44 +527,43 @@
 
     /* ---------- step 3: code ---------- */
     let prog = [];            // arrows/blocks tokens
-    let textSrc = tierId === 'teen' ? `# Mission ${mi + 1}: ${m.title}\n# Write your program below. Try using repeat!\n\n` : '';
+    let textSrc = tierId === 'teen' ? t('code.comment', { n: mi + 1, title: m.title }) : '';
     const canMelt = kind === 'melt';
 
     function codeStep() {
       const editorHTML = {
         arrows: `
-          <p class="simple">${tier.simple ? 'Tap the arrows. 👆<br>Then tap <b>▶ Go!</b>' : 'Tap the arrows to plan Spark\'s path, then press <b>Go!</b>'}</p>
+          <p class="simple">${ts(tier.simple, 'c.arrows')}</p>
           <div class="palette">
-            ${Object.keys(ARROW).map(d => `<button class="key" data-add="${d}" aria-label="${d}">${ARROW[d]}</button>`).join('')}
-            ${canMelt ? '<button class="key melt" data-add="melt">✨ Melt</button>' : ''}
+            ${Object.keys(ARROW).map(d => `<button class="key" data-add="${d}" aria-label="${esc(t('dir.' + d))}">${ARROW[d]}</button>`).join('')}
+            ${canMelt ? `<button class="key melt" data-add="melt">${t('key.melt')}</button>` : ''}
           </div>
           <div class="program" id="prog"></div>`,
         blocks: `
-          <p>Add blocks to build a program. Click a <span class="blk" style="display:inline-flex;padding:0 6px">number</span> to change it.
-          Put steps between <b>🔁 Repeat</b> and <b>End</b> to loop them!</p>
+          <p>${t('c.blocks', { number: `<span class="blk" style="display:inline-flex;padding:0 6px">${t('c.number')}</span>` })}</p>
           <div class="palette">
-            ${Object.keys(ARROW).map(d => `<button class="key" data-add="${d}" aria-label="${d}">${ARROW[d]}</button>`).join('')}
-            ${canMelt ? '<button class="key melt" data-add="melt">✨ Melt</button>' : ''}
-            <button class="key rep" data-add="repeat">🔁 Repeat</button>
-            <button class="key end" data-add="end">⏹ End</button>
+            ${Object.keys(ARROW).map(d => `<button class="key" data-add="${d}" aria-label="${esc(t('dir.' + d))}">${ARROW[d]}</button>`).join('')}
+            ${canMelt ? `<button class="key melt" data-add="melt">${t('key.melt')}</button>` : ''}
+            <button class="key rep" data-add="repeat">${t('key.repeat')}</button>
+            <button class="key end" data-add="end">${t('key.end')}</button>
           </div>
           <div class="program list" id="prog"></div>`,
         text: `
-          <div class="codebox"><div class="gutter" id="gutter">1</div>
-            <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Code editor"></textarea></div>
-          <div class="ref"><b>Commands:</b> <code>up 2</code> <code>down 1</code> <code>left 3</code> <code>right 4</code>
-            ${canMelt ? '<code>melt</code>' : ''} <code>repeat 3 { … }</code> <code># comment</code><br>
-            Repeats can go inside repeats! Each command or repeat counts as 1. Press <b>Ctrl/⌘ + Enter</b> to run.</div>`,
+          <div class="codebox" dir="ltr"><div class="gutter" id="gutter">1</div>
+            <textarea id="code" dir="ltr" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="${esc(t('c.aria'))}"></textarea></div>
+          <div class="ref">${t('c.ref')} <bdi dir="ltr"><code>up 2</code> <code>down 1</code> <code>left 3</code> <code>right 4</code>
+            ${canMelt ? '<code>melt</code>' : ''} <code>repeat 3 { … }</code> <code># comment</code></bdi><br>
+            ${t('c.ref2')}</div>`,
       }[tier.editor];
 
-      panel.innerHTML = `<h2>🧩 Step 2: ${tier.simple ? 'Move Spark' : 'Code Spark\'s path'}</h2>
+      panel.innerHTML = `<h2>${ts(tier.simple, 'c.h')}</h2>
         ${editorHTML}
         <div class="counter" id="counter"></div>
         <div class="row">
-          <button class="btn green" id="runBtn">▶ Go!</button>
-          ${tier.editor !== 'text' ? '<button class="btn ghost" id="undoBtn">↩ Undo</button>' : ''}
-          <button class="btn ghost" id="clearBtn">🗑 Clear</button>
-          <button class="btn ghost hidden" id="hintBtn">💡 Hint</button>
+          <button class="btn green" id="runBtn">${t('btn.run')}</button>
+          ${tier.editor !== 'text' ? `<button class="btn ghost" id="undoBtn">${t('btn.undo')}</button>` : ''}
+          <button class="btn ghost" id="clearBtn">${t('btn.clear')}</button>
+          <button class="btn ghost hidden" id="hintBtn">${t('btn.hint')}</button>
         </div>
         <div id="out"></div>`;
 
@@ -540,7 +582,7 @@
         panel.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
           if (running) return;
           const a = b.dataset.add;
-          if (prog.length >= 60) { msg('warn', 'That\'s a lot of blocks! Try using fewer.'); return; }
+          if (prog.length >= 60) { msg('warn', t('c.toomany')); return; }
           if (a === 'melt') prog.push({ t: 'melt' });
           else if (a === 'repeat') prog.push({ t: 'repeat', n: 2 });
           else if (a === 'end') prog.push({ t: 'end' });
@@ -569,26 +611,27 @@
 
     function drawProg(now, err) {
       const box = $('#prog'); if (!box) return;
-      if (!prog.length) { box.innerHTML = `<div class="empty">${tier.simple ? 'Your arrows go here 👣' : tier.editor === 'arrows' ? 'Your path will appear here… 👣' : 'Your program is empty. Add some blocks!'}</div>`; updateCounter(); return; }
+      if (!prog.length) { box.innerHTML = `<div class="empty">${t(tier.simple ? 'c.empty.s' : tier.editor === 'arrows' ? 'c.empty.a' : 'c.empty.b')}</div>`; updateCounter(); return; }
       if (tier.editor === 'arrows') {
-        box.innerHTML = prog.map((t, i) => `<div class="tok ${i === now ? 'now' : ''} ${i === prog.length - 1 && now == null ? 'pop-in' : ''}">${t.t === 'melt' ? '✨' : ARROW[t.dir]}</div>`).join('');
+        box.innerHTML = prog.map((b, i) => `<div class="tok ${i === now ? 'now' : ''} ${i === prog.length - 1 && now == null ? 'pop-in' : ''}">${b.t === 'melt' ? '✨' : ARROW[b.dir]}</div>`).join('');
       } else {
         let depth = 0;
-        box.innerHTML = prog.map((t, i) => {
-          if (t.t === 'end') depth = Math.max(0, depth - 1);
-          const pad = `margin-left:${depth * 26}px`;
-          const cls = `blk ${t.t === 'repeat' ? 'rep' : t.t === 'end' ? 'end' : t.t === 'melt' ? 'melt' : ''} ${i === now ? 'now' : ''} ${i === err ? 'err' : ''}`;
+        box.innerHTML = prog.map((b, i) => {
+          if (b.t === 'end') depth = Math.max(0, depth - 1);
+          const pad = `margin-inline-start:${depth * 26}px`;
+          const cls = `blk ${b.t === 'repeat' ? 'rep' : b.t === 'end' ? 'end' : b.t === 'melt' ? 'melt' : ''} ${i === now ? 'now' : ''} ${i === err ? 'err' : ''}`;
+          const nBtn = label => `<button class="n" data-n="${i}" aria-label="${esc(t(label))}">${b.n}</button>`;
           let body;
-          if (t.t === 'repeat') { body = `🔁 Repeat <button class="n" data-n="${i}" aria-label="change repeat count">${t.n}</button> times`; depth++; }
-          else if (t.t === 'end') body = '⏹ End repeat';
-          else if (t.t === 'melt') body = '✨ Melt';
-          else body = `${ARROW[t.dir]} ${t.dir[0].toUpperCase() + t.dir.slice(1)} <button class="n" data-n="${i}" aria-label="change steps">${t.n}</button> ${t.n === 1 ? 'step' : 'steps'}`;
-          return `<div class="${cls}" style="${pad}">${body}<button class="x" data-x="${i}" aria-label="remove block">✖</button></div>`;
+          if (b.t === 'repeat') { body = t('b.repeat', { n: nBtn('aria.repeatN') }); depth++; }
+          else if (b.t === 'end') body = t('b.end');
+          else if (b.t === 'melt') body = t('b.melt');
+          else body = t(b.n === 1 ? 'b.move1' : 'b.moveN', { arrow: ARROW[b.dir], dir: t('dir.' + b.dir), n: nBtn('aria.stepsN') });
+          return `<div class="${cls}" style="${pad}">${body}<button class="x" data-x="${i}" aria-label="${esc(t('aria.remove'))}">✖</button></div>`;
         }).join('');
         box.querySelectorAll('[data-n]').forEach(b => b.onclick = () => {
           if (running) return;
-          const t = prog[+b.dataset.n];
-          t.n = t.t === 'repeat' ? (t.n >= 9 ? 2 : t.n + 1) : (t.n >= 9 ? 1 : t.n + 1);
+          const bk = prog[+b.dataset.n];
+          bk.n = bk.t === 'repeat' ? (bk.n >= 9 ? 2 : bk.n + 1) : (bk.n >= 9 ? 1 : bk.n + 1);
           sfx.step(); drawProg();
         });
         box.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { if (!running) { prog.splice(+b.dataset.x, 1); drawProg(); } });
@@ -599,7 +642,7 @@
 
     function getTokens() {
       if (tier.editor === 'text') return parseText(textSrc);
-      return prog.map((t, i) => ({ ...t, src: i }));
+      return prog.map((b, i) => ({ ...b, src: i }));
     }
 
     function countOf(tokens) { return tier.editor === 'arrows' ? tokens.length : statementCount(tokens); }
@@ -608,27 +651,28 @@
       const c = $('#counter'); if (!c) return;
       let n = '?';
       try { n = countOf(getTokens()); } catch (e) { /* show ? while typing */ }
-      c.textContent = tier.simple ? `Taps: ${n}   •   ⭐⭐⭐ = ${m.par} taps` : `${tier.editor === 'text' ? 'Commands' : 'Blocks'} used: ${n}   •   ⭐⭐⭐ target: ${m.par}`;
+      c.textContent = t(tier.simple ? 'cnt.s' : tier.editor === 'text' ? 'cnt.commands' : 'cnt.blocks', { n, par: m.par });
     }
 
     function msg(type, html) { $('#out').innerHTML = `<div class="msg ${type}" role="status">${html}</div>`; }
 
     function setRunning(on) {
       running = on;
-      $('#runBtn').textContent = on ? '⏹ Stop' : '▶ Go!';
+      $('#runBtn').textContent = on ? t('btn.stop') : t('btn.run');
       $('#runBtn').classList.toggle('red', on); $('#runBtn').classList.toggle('green', !on);
       panel.querySelectorAll('[data-add], #undoBtn, #clearBtn').forEach(b => b.disabled = on);
       if ($('#code')) $('#code').readOnly = on;
     }
 
-    function stop() { timers.forEach(clearTimeout); timers = []; setRunning(false); spark.classList.remove('walk'); spark.classList.add('idle'); drawProg(); drawGutter(); msg('info', tier.simple ? 'Stopped. Try again!' : 'Stopped. Change your program and try again!'); }
+    function stop() { timers.forEach(clearTimeout); timers = []; setRunning(false); spark.classList.remove('walk'); spark.classList.add('idle'); drawProg(); drawGutter(); msg('info', ts(tier.simple, 'stop')); }
 
     function highlight(src) { if (tier.editor === 'text') drawGutter(src); else drawProg(src); }
 
     function failed(html) {
       fails++; sfx.bad();
       if (fails >= 2) $('#hintBtn').classList.remove('hidden');
-      msg('warn', html + (fails >= 2 ? (tier.simple ? '<br>Need help? Tap <b>💡 Hint</b>. Or ask a grown-up! 👨‍👩‍👧' : '<br>Stuck? Press <b>💡 Hint</b>.') : ''));
+      msg('warn', html + (fails >= 2 ? ts(tier.simple, 'fail.hint') : ''));
+      scheduleReset();
       if (tier.simple) speak(html.replace(/<[^>]+>/g, ''));
     }
 
@@ -637,19 +681,19 @@
       let tokens, actions;
       try {
         tokens = getTokens();
-        if (!tokens.length) { msg('info', tier.simple ? 'Tap some arrows first! 👆' : tier.editor === 'text' ? 'Write some commands first, like <code>right 2</code>.' : 'Add some blocks first!'); return; }
-        if (!canMelt && tokens.some(t => t.t === 'melt')) throw new CodeError('Spark doesn\'t have melt power in this mission.', tokens.find(t => t.t === 'melt').src);
+        if (!tokens.length) { msg('info', t(tier.simple ? 'run.empty.s' : tier.editor === 'text' ? 'run.empty.t' : 'run.empty.b')); return; }
+        if (!canMelt && tokens.some(k => k.t === 'melt')) throw new CodeError('Spark doesn\'t have melt power in this mission.', tokens.find(k => k.t === 'melt').src, 'e.nomelt');
         actions = compile(tokens);
       } catch (e) {
         if (!(e instanceof CodeError)) throw e;
         sfx.bad();
-        if (tier.editor === 'text') { drawGutter(null, e.line); msg('err', `🐞 Bug on line ${e.line || '?'}: ${esc(e.message)}`); }
-        else { drawProg(null, e.line); msg('err', `🐞 ${esc(e.message.replace(/repeat/gi, 'Repeat').replace(/\}/g, 'End'))}`); }
+        if (tier.editor === 'text') { drawGutter(null, e.line); msg('err', t('err.line', { line: e.line || '?', msg: esc(errText(e)) })); }
+        else { drawProg(null, e.line); msg('err', t('err.plain', { msg: esc(I18N.lang === 'en' ? errText(e).replace(/repeat/gi, 'Repeat').replace(/\}/g, 'End') : errText(e)) })); }
         return;
       }
       const count = countOf(tokens);
       const sim = simulate(lv, actions);
-      setRunning(true); msg('info', tier.simple ? 'Go, Spark, go! 🏃' : 'Running… 🏃');
+      setRunning(true); msg('info', ts(tier.simple, 'run.go'));
       spark.classList.remove('idle'); spark.classList.add('walk');
       let got = 0;
       sim.ev.forEach((e, i) => timers.push(setTimeout(() => {
@@ -659,17 +703,17 @@
           spark.dataset.face = e.a.dir === 'left' ? 'l' : e.a.dir === 'right' ? 'r' : spark.dataset.face || 'r';
           placeSpark(e.x, e.y); sfx.step();
           if (e.collected) {
-            const cell = cells[key(e.x, e.y)], cs = board.clientWidth / lv.w;
+            const cell = cells[key(e.x, e.y)], cs = cellW();
             cell.classList.add('got'); $('#gotN').textContent = ++got; sfx.collect();
             burst(board, (e.x + 0.5) * cs, (e.y + 0.5) * cs, ['✨', '⭐', '🎉'], 9, cs * 1.1);
-            floatText(board, (e.x + 0.5) * cs, e.y * cs, tier.simple ? 'Yay! 🎁' : '+1 🎁');
+            floatText(board, (e.x + 0.5) * cs, e.y * cs, ts(tier.simple, 'yay'));
             const pill = $('#gotN').parentElement; pill.classList.remove('boing'); pill.offsetWidth; pill.classList.add('boing');
           }
         } else if (e.t === 'melt') {
           const cs = board.clientWidth / lv.w;
           e.cells.forEach(k => { cells[k].classList.add('melted'); const [cx, cy] = k.split(',').map(Number); burst(board, (cx + 0.5) * cs, (cy + 0.5) * cs, ['💧', '✨', '💦'], 8, cs); });
           sfx.melt(); spark.classList.remove('zap'); spark.offsetWidth; spark.classList.add('zap');
-          if (!e.cells.length) msg('info', tier.simple ? '✨ Melt! But no ice is here.' : '✨ Melt! …but there was no ice next to Spark.');
+          if (!e.cells.length) msg('info', ts(tier.simple, 'melt.none'));
         } else if (e.t === 'bonk') {
           spark.classList.remove('bonk'); spark.offsetWidth; spark.classList.add('bonk'); sfx.bonk();
           const cs = board.clientWidth / lv.w, [ddx, ddy] = DIRV[e.dir];
@@ -684,11 +728,11 @@
       setRunning(false);
       highlight(null);
       spark.classList.remove('walk'); spark.classList.add('idle');
-      if (sim.result === 'win') { msg('ok', tier.simple ? '🎉 Hooray! You did it!' : '🎉 Spark made it to the sleigh with every present!'); return win(count); }
-      if (sim.result === 'bonk') failed(tier.simple ? BONK_SIMPLE[sim.why] : BONK[sim.why] + ' Fix your program and try again!');
-      else if (tier.simple) failed(sim.result === 'missing' ? `Get all the gifts first! 🎁 ${sim.left} more to go.` : 'You got all the gifts! 🎉 Now go to the sleigh 🛷.');
-      else if (sim.result === 'missing') failed(`Spark still needs to collect <b>${sim.left}</b> more ${sim.left === 1 ? 'present' : 'presents'} 🎁 before going to the sleigh.`);
-      else failed('All the presents are collected! 🎉 Now finish on Santa\'s sleigh 🛷.');
+      if (sim.result === 'win') { msg('ok', ts(tier.simple, 'win.msg')); return win(count); }
+      if (sim.result === 'bonk') failed(tier.simple ? t('bonk.' + sim.why + '.s') : t('bonk.' + sim.why) + t('fail.fix'));
+      else if (tier.simple) failed(sim.result === 'missing' ? t('miss.s', { n: sim.left }) : t('notgoal.s'));
+      else if (sim.result === 'missing') failed(t(sim.left === 1 ? 'miss.one' : 'miss.many', { n: sim.left }));
+      else failed(t('notgoal'));
     }
 
     function win(count) {
@@ -696,28 +740,24 @@
       saveStars(tierId, mi, stars);
       spark.classList.add('happy'); sfx.win(); confetti();
       const last = mi === tier.missions.length - 1;
-      const tip = tier.simple ? (stars < 3 ? `You did it! 🎉<br>Can you do it in <b>${m.par}</b> taps? Try again for ⭐⭐⭐!` : 'Wow! The best way! 🌟')
+      const tip = tier.simple ? (stars < 3 ? t('w.retry.s', { par: m.par }) : t('w.best.s'))
         : stars < 3
-        ? `You used ${count} ${unit}. Can you do it in <b>${m.par}</b> for ⭐⭐⭐?${tier.editor !== 'arrows' ? ' (Look for patterns you can repeat!)' : ''}`
-        : (tier.editor === 'arrows' ? 'Perfect path — the shortest way!' : 'Super-efficient code — that\'s how real engineers think!');
-      const lesson = {
-        young: 'You asked nicely. You gave clear steps. That is what coders do! 💙',
-        middle: 'You used <b>loops</b> to repeat patterns, and wrote a prompt with <b>who, what and why</b>.',
-        teen: 'You engineered a prompt with <b>task, context and limits</b>, and wrote code with <b>loops</b>.',
-      }[tierId];
+        ? t('w.retry', { count, unit, par: m.par }) + (tier.editor !== 'arrows' ? t('w.pattern') : '')
+        : t(tier.editor === 'arrows' ? 'w.best.arrows' : 'w.best.code');
+      const lesson = t('w.lesson.' + tierId);
       modal(`
         <div class="winhero"><span class="ray"></span><img src="spark.png" alt="" class="dance"></div>
-        <h2 class="rainbow">${last ? '🎄 Christmas is saved! 🎄' : tier.simple ? 'You did it!' : 'Mission complete!'}</h2>
+        <h2 class="rainbow">${last ? t('w.saved') : ts(tier.simple, 'w.complete')}</h2>
         <div class="stars">${[0, 1, 2].map(i => `<span class="${i < stars ? '' : 'dim'}" style="animation-delay:${i * .25}s">⭐</span>`).join('')}</div>
         <p class="${tier.simple ? 'simple' : ''}">${tip}</p>
         <p class="${tier.simple ? 'simple' : ''}">${lesson}</p>
-        ${last && tier.simple ? '<p class="simple">You did ALL of them! 🏆</p>' : ''}${last && !tier.simple ? `<p>You finished every <b>${tier.name}</b> mission! ${tierId !== 'teen' ? 'Ready for a bigger challenge? Try the next age group!' : 'You\'re a true North Star Engineer! ⭐'}</p>` : ''}
+        ${last && tier.simple ? `<p class="simple">${t('w.all.s')}</p>` : ''}${last && !tier.simple ? `<p>${t('w.all', { tier: tierName(tierId) })} ${t(tierId !== 'teen' ? 'w.nexttier' : 'w.true')}</p>` : ''}
         <div class="row" style="justify-content:center">
-          <button class="btn green pulse" id="mNext">${last ? (tier.simple ? '🛷 See the ending!' : '🛷 Watch the finale!') : tier.simple ? 'Next ➡️' : 'Next mission ➡'}</button>
-          <button class="btn ghost" id="mRetry">🔁 ${tier.simple ? 'Again' : 'Try again'}</button>
+          <button class="btn green pulse" id="mNext">${ts(tier.simple, last ? 'w.finale' : 'w.next')}</button>
+          <button class="btn ghost" id="mRetry">${ts(tier.simple, 'w.again')}</button>
         </div>`, card => {
         $('#mNext', card).onclick = () => last ? go(() => openFinale(tierId)) : go(() => playMission(tierId, mi + 1));
-        if (tier.simple) speak(last ? 'You did all of them! Hooray!' : 'You did it! Hooray!');
+        if (tier.simple) speak(t(last ? 'speak.alldone' : 'speak.done'));
         const st = card.querySelectorAll('.stars span:not(.dim)');
         st.forEach((el, i) => setTimeout(() => { burstAt(el, ['✨', '⭐'], 8, 50); tone(880 + i * 220, 0.15, 'sine', 0.1); }, 350 + i * 260));
         $('#mRetry', card).onclick = () => { closeModal(); resetBoard(); $('#out').innerHTML = ''; };
@@ -726,5 +766,31 @@
   }
 
   addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').classList.contains('hidden')) closeModal(); });
+
+  /* ---------------- language ---------------- */
+  let current = titleScreen;               // last screen shown, so changing language can redraw it
+  const _go = go;
+  go = fn => { current = fn; _go(fn); };
+  function applyChrome() {
+    document.title = t('app.title');
+    $('.topbar h1').textContent = t('app.title');
+    $('#homeBtn').textContent = t('btn.home');
+    $('#musicBtn').title = t('music.title');
+    drawSoundBtn();
+    if (window.SparkMusic) SparkMusic.relabel();
+    const sel = $('#langSel'); if (sel) { sel.value = I18N.lang; sel.setAttribute('aria-label', t('lang.label')); }
+  }
+  function setLanguage(code) {
+    I18N.set(code); I18N.applyMissions(TIERS); pickVoice(); applyChrome();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    const fin = document.querySelector('.finale'); if (fin) { fin.remove(); document.body.classList.remove('no-scroll'); }
+    closeModal(); cleanup && (cleanup(), cleanup = null);
+    current(); scrollTo(0, 0);
+  }
+  const sel = $('#langSel');
+  sel.innerHTML = I18N.langs().map(l => `<option value="${l.code}">${l.name}</option>`).join('');
+  sel.onchange = () => setLanguage(sel.value);
+  I18N.init(); I18N.applyMissions(TIERS); pickVoice(); applyChrome();
+  window.SparkGame = { setLanguage };
   titleScreen();
 })();

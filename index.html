@@ -14,7 +14,8 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
   body {
-    font-family: "Nunito", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    font-family: "Nunito", "Trebuchet MS", "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+                 "Kohinoor Devanagari", "Nirmala UI", "Noto Sans Devanagari", "Geeza Pro", "Segoe UI Arabic", "Noto Sans Arabic", sans-serif;
     color: var(--ink);
     background: radial-gradient(ellipse at top, var(--night2), var(--night) 70%) fixed;
     overflow-x: hidden;
@@ -88,7 +89,7 @@
   .hud .pill { font-size: .95rem; }
   .board { position: relative; display: grid; border-radius: var(--radius); overflow: hidden; background: #e9f6ff;
            box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 0 0 4px #ffffff; aspect-ratio: var(--ar); }
-  .cell { position: relative; display: grid; place-items: center; font-size: inherit; line-height: 1; border: 1px solid rgba(30,120,200,.08); }
+  .cell { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; font-size: inherit; line-height: 1; border: 1px solid rgba(30,120,200,.08); }
   .cell.alt { background: rgba(255,255,255,.65); }
   .cell.goal { background: radial-gradient(circle, #ffe9a3 0%, transparent 75%); }
   .cell .ob { transition: transform .4s, opacity .4s; }
@@ -99,11 +100,12 @@
   .cell.trail::after { content: ""; position: absolute; width: 22%; height: 22%; border-radius: 50%; background: rgba(30,120,220,.35); }
   .spark { position: absolute; left: 0; top: 0; pointer-events: none; transition: left var(--spd) ease-in-out, top var(--spd) ease-in-out; z-index: 3;
            display: grid; place-items: center; }
-  .spark img { width: 82%; filter: drop-shadow(0 4px 4px rgba(0,0,0,.3)); }
+  /* Spark's picture fills an inner box (88% of the square) and is scaled with object-fit, so it can never leave its square */
+  .spark img { position: absolute; inset: 6%; width: 88%; height: 88%; object-fit: contain; object-position: 50% 50%; filter: drop-shadow(0 3px 3px rgba(0,0,0,.3)); }
   .spark.bonk img { animation: bonk .45s; }
   .spark.happy img { animation: hop .5s 3; }
-  @keyframes bonk { 20%,60% { transform: translateX(-10%) rotate(-8deg); } 40%,80% { transform: translateX(10%) rotate(8deg); } }
-  @keyframes hop { 50% { transform: translateY(-30%) scale(1.1); } }
+  @keyframes bonk { 20%,60% { transform: translateX(-5%) rotate(-8deg); } 40%,80% { transform: translateX(5%) rotate(8deg); } }
+  @keyframes hop { 50% { transform: translateY(-6%) scale(1.04); } }
   .veil { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; text-align: center; color: white; font-weight: 800;
           font-size: 1.2rem; padding: 20px; transition: opacity 1.2s; border-radius: var(--radius); }
   .veil.fog { background: rgba(235,244,252,.93); color: #5a6f8c; backdrop-filter: blur(8px); }
@@ -230,12 +232,12 @@
   @keyframes sway { 50% { transform: rotate(3deg); } }
   .cell.got .ob { animation: none; }
   .spark.idle img { animation: idle 1.6s ease-in-out infinite; }
-  @keyframes idle { 50% { transform: translateY(-7%) scale(1.03); } }
+  @keyframes idle { 50% { transform: translateY(-4%); } }
   .spark.walk img { animation: walk .34s ease-in-out infinite; }
-  @keyframes walk { 50% { transform: translateY(-12%) rotate(4deg); } }
+  @keyframes walk { 50% { transform: translateY(-5%) rotate(4deg); } }
   .spark[data-face="l"] img { scale: -1 1; }
   .spark.zap img { animation: zap .5s; filter: drop-shadow(0 0 12px #ff9a3d); }
-  @keyframes zap { 50% { transform: scale(1.25); } }
+  @keyframes zap { 50% { transform: scale(1.06); } }
   .board.shake { animation: shake .35s; }
   .board.aurora::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: var(--radius);
     background: linear-gradient(115deg, rgba(62,224,143,.0), rgba(62,224,143,.28), rgba(76,195,255,.22), rgba(190,110,255,.25), rgba(62,224,143,.0));
@@ -373,6 +375,41 @@
   .donebar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: #fff4cf; border: 3px solid #f1c34b; }
   .donebar span { flex: 1; min-width: 160px; font-size: 1.1rem; }
 
+  /* ---------- language picker ---------- */
+  .langpick { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; }
+  .langpick select { font: inherit; font-weight: 700; color: #fff; background: transparent; border: 0; cursor: pointer; padding: 2px 0; max-width: 9.5em; }
+  .langpick select:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+  .langpick option { color: var(--ink); background: #fff; }
+
+  /* ---------- right-to-left (Arabic) ---------- */
+  [dir="rtl"] .bubble, [dir="rtl"] .opt, [dir="rtl"] .mission, [dir="rtl"] .tier, [dir="rtl"] .bonus { text-align: right; }
+  [dir="rtl"] .mission .stars { margin-left: 0; margin-right: auto; }
+  [dir="rtl"] .blk .x { margin-left: 0; margin-right: auto; }
+  [dir="rtl"] .goalcard .arrowgo { transform: scaleX(-1); }
+  [dir="rtl"] .card-preview .shuffle { left: auto; right: 12px; }
+  .board, .codebox, .program:not(.list) { direction: ltr; }   /* grids and code always read left→right */
+
+  /* ---------- card maker: designer mode (ages 9–16) ---------- */
+  .card-maker.designer .panel { background: #f7f4ee; }
+  .card-maker.designer .bubble { border-color: #d9cfbd; background: #fffdf8; }
+  .dgrid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+  .dpick { padding: 6px 6px 10px; gap: 8px; font-weight: 700; font-size: .92rem; border-color: #e3dccd; border-radius: 12px; }
+  .dpick .dthumb { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; display: block; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+  .dpick.on { border-color: #b8894a; background: #fbf3e4; box-shadow: 0 0 0 3px rgba(184,137,74,.35); }
+  .card-maker.designer .chip.on { background: #2f4a44; border-color: #2f4a44; }
+  .card-maker.designer .qdots span.now { background: #2f4a44; }
+  .card-maker.designer .qdots span.done { background: #b8894a; }
+  .clabel2 { margin-top: 14px; font-weight: 800; color: #3b5784; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 120; background: #10213f; color: #fff; padding: 12px 18px;
+           border-radius: 14px; font-weight: 700; box-shadow: 0 10px 30px rgba(0,0,0,.4); max-width: min(92vw, 520px); text-align: center; animation: pop .3s both; }
+
+  /* ---------- automatic board reset after a failed run ---------- */
+  .resetnote { position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%); z-index: 6; max-width: 90%; text-align: center;
+               background: rgba(16,33,63,.9); color: #fff; font-weight: 800; font-size: clamp(.95rem, 2.4vw, 1.15rem); padding: 10px 18px;
+               border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.35); animation: pop .3s both; pointer-events: none; }
+  .resetnote.done { background: rgba(42,157,92,.95); }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
   }
@@ -388,6 +425,7 @@
     </div>
     <span class="aikids"><img src="aikids-logo.png" alt="AIKids"></span>
     <div class="actions">
+      <label class="pill langpick" title="Language"><span aria-hidden="true">🌐</span><select id="langSel" aria-label="Language"></select></label>
       <button class="pill music" id="musicBtn" aria-pressed="false" title="Play a calm holiday song">🎵 Music off</button>
       <button class="pill" id="soundBtn" aria-label="Toggle sound">🔊 Sound</button>
       <button class="pill hidden" id="homeBtn">🏠 Home</button>
@@ -397,6 +435,12 @@
 </div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="card" id="modalCard"></div></div>
 
+<script src="i18n.js"></script>
+<script src="lang/zh.js"></script>
+<script src="lang/hi.js"></script>
+<script src="lang/es.js"></script>
+<script src="lang/fr.js"></script>
+<script src="lang/ar.js"></script>
 <script src="music.js"></script>
 <script src="card-assets.js"></script>
 <script src="card.js"></script>

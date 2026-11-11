@@ -1,5 +1,6 @@
 /* Spark's Holiday Card Maker — bonus feature.
    5 guided questions → festive card drawn on a <canvas> → download as PNG.
+   Two looks: bright "kids" art for ages 4–8, and a calmer "designer" style for ages 9–16.
    The Spark + AIKids logo watermark is ALWAYS drawn last, bottom-right, and cannot be turned off. */
 (() => {
   const W = 1200, H = 1600;                       // portrait card (3:4), crisp for printing
@@ -10,12 +11,7 @@
   })));
 
   /* ---------------- the 5 questions ---------------- */
-  const SCENES = [
-    { id: 'night', emoji: '🌙', label: 'Snowy night', simple: 'Snowy night' },
-    { id: 'aurora', emoji: '🌌', label: 'Northern lights', simple: 'Magic lights' },
-    { id: 'fireside', emoji: '🔥', label: 'Cosy fireplace', simple: 'Cosy fire' },
-    { id: 'candy', emoji: '🍭', label: 'Candy cane land', simple: 'Candy land' },
-  ];
+  const T = (k, p) => (window.I18N ? I18N.t(k, p) : k);
   const STARS = [
     { id: 'tree', emoji: '🎄', label: 'Christmas tree' },
     { id: 'snowman', emoji: '⛄', label: 'Snowman' },
@@ -24,17 +20,6 @@
     { id: 'gift', emoji: '🎁', label: 'Big present' },
     { id: 'spark', emoji: '<img src="spark.png" alt="" class="ce-img">', label: 'Spark', html: true },
   ];
-  const EXTRAS = [
-    { id: 'snow', emoji: '❄️', label: 'Snowflakes' },
-    { id: 'stars', emoji: '⭐', label: 'Stars' },
-    { id: 'lights', emoji: '💡', label: 'Fairy lights' },
-    { id: 'gifts', emoji: '🎁', label: 'Presents' },
-    { id: 'baubles', emoji: '🔴', label: 'Baubles' },
-    { id: 'holly', emoji: '🌿', label: 'Holly' },
-  ];
-  const GREETINGS = [
-    'Merry Christmas!', 'Happy Holidays!', 'Season\'s Greetings!', 'Let It Snow!', 'Ho Ho Ho!', 'Joy to the World!',
-  ];
   const STYLES = [
     { id: 'classic', label: 'Classic', font: 'Georgia, "Times New Roman", serif', color: '#ffffff', glow: '#ffd23f' },
     { id: 'bubbly', label: 'Bubbly', font: '"Trebuchet MS", "Nunito", system-ui, sans-serif', color: '#ffe066', glow: '#ff4d8d' },
@@ -42,7 +27,7 @@
     { id: 'candy', label: 'Candy', font: '"Trebuchet MS", system-ui, sans-serif', color: '#ffffff', glow: '#e63946', stripe: true },
   ];
 
-  const state = { scene: null, star: null, extras: [], greeting: null, custom: '', to: '', from: '', style: 'classic', seed: 7 };
+  const state = { mode: null, scene: null, star: null, extras: [], greetKey: null, custom: '', to: '', from: '', style: 'classic', seed: 7 };
 
   /* ---------------- tiny seeded random so the preview doesn't jump about ---------------- */
   let _s = 1;
@@ -236,7 +221,7 @@
 
   /* ---------------- greeting text ---------------- */
   function drawGreeting(c) {
-    const text = (state.custom.trim() || state.greeting || '').slice(0, 40);
+    const text = (state.custom.trim() || (state.greetKey ? T(state.greetKey) : '') || '').slice(0, 40);
     if (!text) return;
     const st = STYLES.find(s => s.id === state.style);
     let size = 130; c.font = `900 ${size}px ${st.font}`;
@@ -249,7 +234,7 @@
     rr(c, 60, y0 - size * 0.85 - 10, W - 120, bh, 40); c.fill(); c.restore();
     lines.forEach((ln, i) => {
       const y = y0 + i * size * 1.15;
-      c.save(); c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.font = `900 ${size}px ${st.font}`;
+      c.save(); c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.font = `900 ${size}px ${st.font}`; c.direction = window.I18N ? I18N.dir : 'ltr';
       c.lineJoin = 'round'; c.lineWidth = size * 0.12; c.strokeStyle = 'rgba(0,0,0,.35)'; c.strokeText(ln, W / 2, y + 6);
       c.shadowColor = st.glow; c.shadowBlur = 30; c.fillStyle = st.color; c.fillText(ln, W / 2, y);
       c.restore();
@@ -273,33 +258,285 @@
     const to = state.to.trim().slice(0, 24), from = state.from.trim().slice(0, 24);
     if (!to && !from) return;
     const x = 70, y = H - 290, w = 560, h = to && from ? 200 : 130;
+    const rtl = window.I18N && I18N.dir === 'rtl';
     c.save(); c.translate(x + w / 2, y + h / 2); c.rotate(-0.03); c.translate(-(x + w / 2), -(y + h / 2));
     c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 20; c.shadowOffsetY = 8;
     c.fillStyle = '#fffdf4'; rr(c, x, y, w, h, 22); c.fill(); c.shadowColor = 'transparent';
     c.strokeStyle = '#e63946'; c.lineWidth = 6; c.setLineDash([18, 12]); rr(c, x + 12, y + 12, w - 24, h - 24, 14); c.stroke(); c.setLineDash([]);
     c.fillStyle = '#10213f'; c.textBaseline = 'middle'; c.font = '700 52px "Trebuchet MS", system-ui, sans-serif';
+    c.direction = rtl ? 'rtl' : 'ltr'; c.textAlign = rtl ? 'right' : 'left';
+    const tx = rtl ? x + w - 40 : x + 40;
     let ly = y + (to && from ? 68 : h / 2);
-    if (to) { c.fillText('To: ' + to, x + 40, ly, w - 80); ly += 72; }
-    if (from) c.fillText('From: ' + from, x + 40, ly, w - 80);
+    if (to) { c.fillText(T('card.k.toLine', { name: to }), tx, ly, w - 80); ly += 72; }
+    if (from) c.fillText(T('card.k.fromLine', { name: from }), tx, ly, w - 80);
     c.restore();
   }
 
+  /* =====================================================================
+     DESIGNER MODE (ages 9–16): a more grown-up, "stationery shop" look.
+     Vector art only (no emoji), muted jewel palettes, gold accents, serif type.
+     ===================================================================== */
+  const PAL = {
+    midnight: { bg: ['#0b1d2a', '#12324a', '#1d4a63'], ink: '#f3ead7', gold: '#d8b46a', accent: '#7fb3a6', dark: '#07141d', snow: 'rgba(243,234,215,' },
+    aurora:   { bg: ['#050b18', '#0f2236', '#16354a'], ink: '#eaf4f1', gold: '#cfd9c8', accent: '#61d4b3', dark: '#040a14', snow: 'rgba(234,244,241,' },
+    velvet:   { bg: ['#3a0d17', '#5a1424', '#2a0910'], ink: '#f6e7cf', gold: '#e1b866', accent: '#9e2b3b', dark: '#1f060b', snow: 'rgba(246,231,207,' },
+    nordic:   { bg: ['#f2efe8', '#ece7dc', '#e3ddd0'], ink: '#24323b', gold: '#b8894a', accent: '#a23b3b', dark: '#2f4a44', snow: 'rgba(36,50,59,' },
+  };
+  const pal = () => PAL[state.scene] || PAL.midnight;
+
+  function dScene(c, id) {
+    const P = PAL[id] || PAL.midnight;
+    const g = c.createLinearGradient(0, 0, 0, H); P.bg.forEach((col, i) => g.addColorStop(i / (P.bg.length - 1), col));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    if (id === 'midnight' || id === 'aurora') {
+      // fine star field
+      for (let i = 0; i < 160; i++) { c.fillStyle = `rgba(255,255,255,${0.15 + rnd() * 0.55})`; c.beginPath(); c.arc(rnd() * W, rnd() * H * 0.62, rnd() * 1.6 + 0.3, 0, 7); c.fill(); }
+    }
+    if (id === 'aurora') {
+      c.save(); c.globalCompositeOperation = 'screen'; c.filter = 'blur(28px)';
+      [['rgba(97,212,179,', 0.22, 0], ['rgba(110,160,255,', 0.3, 1.4], ['rgba(170,120,230,', 0.18, 2.6]].forEach(([col, yy, ph]) => {
+        c.beginPath(); c.moveTo(-50, H * yy);
+        for (let x = -50; x <= W + 50; x += 30) c.lineTo(x, H * yy + Math.sin(x / 170 + ph) * 60);
+        c.lineTo(W + 50, H * yy + 220); for (let x = W + 50; x >= -50; x -= 30) c.lineTo(x, H * yy + 220 + Math.sin(x / 140 + ph) * 40);
+        c.closePath(); const gg = c.createLinearGradient(0, H * yy - 60, 0, H * yy + 240); gg.addColorStop(0, col + '0)'); gg.addColorStop(0.4, col + '.55)'); gg.addColorStop(1, col + '0)');
+        c.fillStyle = gg; c.fill();
+      });
+      c.restore();
+    }
+    if (id === 'midnight' || id === 'aurora') {
+      // layered pine ridges
+      const layers = id === 'aurora' ? ['#0c2133', '#081827', P.dark] : ['#16384d', '#0f2b3c', P.dark];
+      layers.forEach((col, li) => {
+        const base = H * (0.66 + li * 0.07), size = 90 + li * 50;
+        c.fillStyle = col; c.beginPath(); c.moveTo(0, H);
+        for (let x = -size; x < W + size; x += size * 0.55) {
+          const h = size * (1.6 + rnd() * 1.3);
+          c.lineTo(x, base); c.lineTo(x + size * 0.27, base - h); c.lineTo(x + size * 0.55, base);
+        }
+        c.lineTo(W, H); c.closePath(); c.fill();
+      });
+      c.fillStyle = P.dark; c.fillRect(0, H * 0.86, W, H * 0.14);
+    }
+    if (id === 'velvet') {
+      // damask-like diamond lattice
+      c.save(); c.strokeStyle = 'rgba(225,184,102,.10)'; c.lineWidth = 2;
+      for (let x = -H; x < W + H; x += 90) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + H, H); c.stroke(); c.beginPath(); c.moveTo(x + H, 0); c.lineTo(x, H); c.stroke(); }
+      c.restore();
+      const v = c.createRadialGradient(W / 2, H * 0.48, 80, W / 2, H * 0.5, H * 0.75); v.addColorStop(0, 'rgba(255,220,160,.16)'); v.addColorStop(1, 'rgba(0,0,0,.45)');
+      c.fillStyle = v; c.fillRect(0, 0, W, H);
+    }
+    if (id === 'nordic') {
+      // paper texture + soft hills
+      for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(80,70,50,${rnd() * 0.035})`; c.fillRect(rnd() * W, rnd() * H, 2, 2); }
+      c.fillStyle = '#e6e0d3'; c.beginPath(); c.moveTo(0, H * 0.8); c.bezierCurveTo(W * 0.3, H * 0.72, W * 0.6, H * 0.84, W, H * 0.76); c.lineTo(W, H); c.lineTo(0, H); c.fill();
+      c.fillStyle = '#ddd6c7'; c.beginPath(); c.moveTo(0, H * 0.88); c.bezierCurveTo(W * 0.4, H * 0.82, W * 0.7, H * 0.92, W, H * 0.86); c.lineTo(W, H); c.lineTo(0, H); c.fill();
+    }
+  }
+
+  /* --- centrepieces --- */
+  function goldGrad(c, x0, y0, x1, y1, P) { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, '#f6e3a8'); g.addColorStop(0.45, P.gold); g.addColorStop(1, '#8a6a2e'); return g; }
+  function dHero(c, id) {
+    const P = pal(), cx = W / 2, cy = H * 0.52;
+    c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+    if (id === 'pine') {
+      // geometric line-art tree with gold baubles
+      const top = cy - 360, bottom = cy + 260;
+      c.strokeStyle = goldGrad(c, cx - 200, top, cx + 200, bottom, P); c.lineWidth = 7;
+      for (let i = 0; i < 6; i++) {
+        const y = top + 60 + i * 95, half = 60 + i * 42;
+        c.beginPath(); c.moveTo(cx - half, y + 40); c.lineTo(cx, y - 60); c.lineTo(cx + half, y + 40); c.stroke();
+      }
+      c.beginPath(); c.moveTo(cx, top - 20); c.lineTo(cx, bottom); c.stroke();
+      c.fillStyle = P.accent; [[-90, 0.48], [70, 0.62], [-40, 0.78], [120, 0.88], [-150, 0.94]].forEach(([dx, f]) => { c.beginPath(); c.arc(cx + dx, top + (bottom - top) * f, 13, 0, 7); c.fill(); });
+      starOutline(c, cx, top - 46, 44, P.gold);
+    } else if (id === 'flake') {
+      c.translate(cx, cy - 40);
+      c.strokeStyle = P.ink; c.lineWidth = 9; c.shadowColor = P.ink; c.shadowBlur = 18;
+      for (let i = 0; i < 6; i++) {
+        c.rotate(Math.PI / 3); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -300); c.stroke();
+        [[110, 70], [190, 60], [255, 38]].forEach(([d, l]) => { c.beginPath(); c.moveTo(0, -d); c.lineTo(l, -d - l * 0.8); c.moveTo(0, -d); c.lineTo(-l, -d - l * 0.8); c.stroke(); });
+      }
+      c.shadowBlur = 0; c.strokeStyle = P.gold; c.lineWidth = 4;
+      c.beginPath(); for (let i = 0; i < 7; i++) { const a = i * Math.PI / 3; c.lineTo(Math.cos(a) * 60, Math.sin(a) * 60); } c.stroke();
+    } else if (id === 'ornament') {
+      const r = 230, oy = cy + 10;
+      c.strokeStyle = P.gold; c.lineWidth = 3; c.beginPath(); c.moveTo(cx, 0); c.lineTo(cx, oy - r - 60); c.stroke();
+      c.fillStyle = goldGrad(c, cx - 40, oy - r - 70, cx + 40, oy - r, P); rr(c, cx - 44, oy - r - 66, 88, 56, 10); c.fill();
+      const g = c.createRadialGradient(cx - 80, oy - 90, 20, cx, oy, r); g.addColorStop(0, 'rgba(255,255,255,.85)'); g.addColorStop(0.18, P.accent); g.addColorStop(1, shade(P.accent, -0.55));
+      c.fillStyle = g; c.beginPath(); c.arc(cx, oy, r, 0, 7); c.fill();
+      c.save(); c.beginPath(); c.arc(cx, oy, r, 0, 7); c.clip();
+      c.strokeStyle = 'rgba(255,240,200,.75)'; c.lineWidth = 5;
+      [-0.45, 0, 0.45].forEach(f => { c.beginPath(); c.ellipse(cx, oy + r * f, r, r * 0.16, 0, 0, 7); c.stroke(); });
+      c.restore();
+      c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(cx - 90, oy - 110, 50, 26, -0.6, 0, 7); c.fill();
+    } else if (id === 'wreath') {
+      const R = 250, wy = cy - 20;
+      for (let i = 0; i < 70; i++) {
+        const a = (i / 70) * Math.PI * 2, rr2 = R + (rnd() - 0.5) * 40, x = cx + Math.cos(a) * rr2, y = wy + Math.sin(a) * rr2;
+        c.save(); c.translate(x, y); c.rotate(a + Math.PI / 2 + (rnd() - 0.5));
+        c.fillStyle = ['#2f5b45', '#3d6e53', '#24493a'][i % 3]; c.beginPath(); c.ellipse(0, 0, 46, 14, 0, 0, 7); c.fill(); c.restore();
+      }
+      for (let i = 0; i < 14; i++) { const a = rnd() * Math.PI * 2, x = cx + Math.cos(a) * R, y = wy + Math.sin(a) * R; c.fillStyle = '#a3283a'; c.beginPath(); c.arc(x, y, 12, 0, 7); c.fill(); c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(x - 4, y - 4, 4, 0, 7); c.fill(); }
+      // bow
+      c.fillStyle = goldGrad(c, cx - 100, wy + R - 60, cx + 100, wy + R + 80, P);
+      c.beginPath(); c.moveTo(cx, wy + R); c.bezierCurveTo(cx - 130, wy + R - 110, cx - 150, wy + R + 60, cx, wy + R); c.fill();
+      c.beginPath(); c.moveTo(cx, wy + R); c.bezierCurveTo(cx + 130, wy + R - 110, cx + 150, wy + R + 60, cx, wy + R); c.fill();
+      c.beginPath(); c.moveTo(cx - 10, wy + R + 10); c.lineTo(cx - 60, wy + R + 150); c.lineTo(cx - 20, wy + R + 135); c.lineTo(cx, wy + R + 10); c.fill();
+      c.beginPath(); c.moveTo(cx + 10, wy + R + 10); c.lineTo(cx + 60, wy + R + 150); c.lineTo(cx + 20, wy + R + 135); c.lineTo(cx, wy + R + 10); c.fill();
+      c.beginPath(); c.arc(cx, wy + R, 20, 0, 7); c.fill();
+    } else if (id === 'cabin') {
+      const bw = 420, bh = 260, bx = cx - bw / 2, by = cy + 40;
+      c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(cx, by + bh + 20, 330, 30, 0, 0, 7); c.fill();
+      c.fillStyle = '#5a3a2a'; c.fillRect(bx, by, bw, bh);
+      c.strokeStyle = 'rgba(0,0,0,.22)'; c.lineWidth = 3; for (let y = by + 26; y < by + bh; y += 26) { c.beginPath(); c.moveTo(bx, y); c.lineTo(bx + bw, y); c.stroke(); }
+      c.fillStyle = '#3b2519'; c.beginPath(); c.moveTo(bx - 50, by + 10); c.lineTo(cx, by - 200); c.lineTo(bx + bw + 50, by + 10); c.closePath(); c.fill();
+      c.fillStyle = '#f4f1ea'; c.beginPath(); c.moveTo(bx - 60, by + 14); c.lineTo(cx, by - 214); c.lineTo(bx + bw + 60, by + 14); c.lineTo(bx + bw + 30, by + 30); c.lineTo(cx, by - 170); c.lineTo(bx - 30, by + 30); c.closePath(); c.fill();
+      c.fillStyle = '#4a3020'; c.fillRect(bx + bw - 110, by - 150, 50, 110);
+      const glow = c.createRadialGradient(cx, by + 130, 10, cx, by + 130, 220); glow.addColorStop(0, 'rgba(255,200,110,.55)'); glow.addColorStop(1, 'rgba(255,200,110,0)');
+      c.fillStyle = glow; c.fillRect(bx - 120, by - 60, bw + 240, bh + 200);
+      [[bx + 60, by + 80], [bx + bw - 140, by + 80]].forEach(([x, y]) => { c.fillStyle = '#ffd38a'; c.fillRect(x, y, 80, 80); c.strokeStyle = '#3b2519'; c.lineWidth = 8; c.strokeRect(x, y, 80, 80); c.beginPath(); c.moveTo(x + 40, y); c.lineTo(x + 40, y + 80); c.moveTo(x, y + 40); c.lineTo(x + 80, y + 40); c.stroke(); });
+      c.fillStyle = '#2a1a10'; rr(c, cx - 38, by + bh - 130, 76, 130, 10); c.fill();
+      c.fillStyle = '#2f5b45'; c.beginPath(); c.arc(cx, by + bh - 160, 30, 0, 7); c.lineWidth = 10; c.strokeStyle = '#2f5b45'; c.stroke();
+      // smoke
+      c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 10; c.beginPath(); c.moveTo(bx + bw - 85, by - 160);
+      c.bezierCurveTo(bx + bw - 40, by - 220, bx + bw - 130, by - 270, bx + bw - 70, by - 340); c.stroke();
+    } else if (id === 'spark' && img.spark.width) {
+      // Spark framed inside a gold medallion — still the same Spark, but presented like a keepsake
+      const R = 290, my = cy - 20;
+      c.strokeStyle = P.gold; c.lineWidth = 6; c.beginPath(); c.arc(cx, my, R, 0, 7); c.stroke();
+      c.lineWidth = 2; c.beginPath(); c.arc(cx, my, R - 18, 0, 7); c.stroke();
+      for (let i = 0; i < 48; i++) { const a = i * Math.PI / 24; c.beginPath(); c.moveTo(cx + Math.cos(a) * (R + 10), my + Math.sin(a) * (R + 10)); c.lineTo(cx + Math.cos(a) * (R + 24), my + Math.sin(a) * (R + 24)); c.stroke(); }
+      const h = 440, w = h * img.spark.width / img.spark.height;
+      c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 26; c.shadowOffsetY = 10;
+      c.drawImage(img.spark, cx - w / 2, my - h / 2 + 10, w, h);
+    }
+    c.restore();
+  }
+  function starOutline(c, x, y, r, col) {
+    c.save(); c.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rad = i % 2 ? r * 0.42 : r; c.lineTo(x + Math.cos(a) * rad, y + Math.sin(a) * rad); }
+    c.closePath(); c.fillStyle = col; c.shadowColor = col; c.shadowBlur = 24; c.fill(); c.restore();
+  }
+  function shade(hex, f) {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, m = v => Math.max(0, Math.min(255, Math.round(v + (f < 0 ? v * f : (255 - v) * f))));
+    return `rgb(${m(r)},${m(g)},${m(b)})`;
+  }
+
+  /* --- finishing touches --- */
+  function dExtras(c, list, layer) {
+    const P = pal(), set = new Set(list);
+    if (layer === 'back') {
+      if (set.has('bokeh')) {
+        c.save(); c.globalCompositeOperation = 'screen';
+        for (let i = 0; i < 26; i++) {
+          const x = rnd() * W, y = rnd() * H * 0.8, r = 20 + rnd() * 60, g = c.createRadialGradient(x, y, 0, x, y, r);
+          g.addColorStop(0, `rgba(255,225,160,${0.12 + rnd() * 0.18})`); g.addColorStop(1, 'rgba(255,225,160,0)'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+        }
+        c.restore();
+      }
+      if (set.has('stars')) for (let i = 0; i < 18; i++) sparkle(c, 80 + rnd() * (W - 160), 120 + rnd() * H * 0.55, 8 + rnd() * 16, P.gold);
+      return;
+    }
+    if (set.has('garland')) {
+      // pine garland swag along the top
+      c.save();
+      for (let s = 0; s < 2; s++) {
+        const x0 = s ? W / 2 : 0, x1 = s ? W : W / 2;
+        for (let i = 0; i <= 26; i++) {
+          const f = i / 26, x = x0 + (x1 - x0) * f, y = 40 + Math.sin(f * Math.PI) * 120;
+          for (let k = 0; k < 4; k++) { c.save(); c.translate(x + (rnd() - 0.5) * 20, y + (rnd() - 0.5) * 16); c.rotate(rnd() * Math.PI); c.fillStyle = ['#2f5b45', '#3d6e53', '#24493a'][k % 3]; c.beginPath(); c.ellipse(0, 0, 30, 8, 0, 0, 7); c.fill(); c.restore(); }
+          if (i % 5 === 2) { c.fillStyle = P.gold; c.beginPath(); c.arc(x, y + 20, 10, 0, 7); c.fill(); }
+        }
+      }
+      c.restore();
+    }
+    if (set.has('confetti')) {
+      for (let i = 0; i < 70; i++) {
+        c.save(); c.translate(rnd() * W, rnd() * H * 0.95); c.rotate(rnd() * Math.PI);
+        c.fillStyle = i % 3 ? P.gold : shade(P.gold, 0.35); c.globalAlpha = 0.5 + rnd() * 0.5;
+        if (i % 2) c.fillRect(-7, -2, 14, 4); else { c.beginPath(); c.arc(0, 0, 3.5, 0, 7); c.fill(); }
+        c.restore();
+      }
+    }
+    if (set.has('snow')) {
+      for (let i = 0; i < 120; i++) { c.fillStyle = P.snow + (0.25 + rnd() * 0.55) + ')'; c.beginPath(); c.arc(rnd() * W, rnd() * H, rnd() * 3.2 + 0.8, 0, 7); c.fill(); }
+    }
+    if (set.has('frame')) {
+      c.save(); c.strokeStyle = P.gold; c.lineWidth = 4; rr(c, 54, 54, W - 108, H - 108, 8); c.stroke();
+      c.lineWidth = 1.5; rr(c, 70, 70, W - 140, H - 140, 6); c.stroke();
+      [[54, 54], [W - 54, 54], [54, H - 54], [W - 54, H - 54]].forEach(([x, y]) => { c.fillStyle = P.gold; c.beginPath(); c.moveTo(x, y - 16); c.lineTo(x + 16, y); c.lineTo(x, y + 16); c.lineTo(x - 16, y); c.closePath(); c.fill(); });
+      c.restore();
+    }
+  }
+  function sparkle(c, x, y, r, col) {
+    c.save(); c.fillStyle = col; c.shadowColor = col; c.shadowBlur = r;
+    c.beginPath(); c.moveTo(x, y - r); c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r); c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r); c.fill(); c.restore();
+  }
+
+  /* --- typography --- */
+  const D_STYLES = {
+    serif:  { font: 'Georgia, "Times New Roman", "Songti SC", "Noto Serif", serif', weight: '400', size: 118, track: 2 },
+    script: { font: '"Snell Roundhand", "Apple Chancery", "Segoe Script", "Brush Script MT", "Kaiti SC", cursive', weight: '400', size: 132, track: 0 },
+    modern: { font: '"Avenir Next", "Helvetica Neue", "PingFang SC", "Segoe UI", system-ui, sans-serif', weight: '300', size: 96, track: 10, upper: true },
+    foil:   { font: 'Didot, "Bodoni 72", Georgia, "Songti SC", serif', weight: '700', size: 118, track: 3, foil: true },
+  };
+  function dGreeting(c) {
+    const text = (state.custom.trim() || (state.greetKey ? T(state.greetKey) : '') || '').slice(0, 40);
+    if (!text) return;
+    const P = pal(), st = D_STYLES[state.style] || D_STYLES.serif, shown = st.upper ? text.toLocaleUpperCase() : text;
+    let size = st.size; const setF = () => { c.font = `${st.weight} ${size}px ${st.font}`; if ('letterSpacing' in c) c.letterSpacing = st.track + 'px'; };
+    setF(); let lines = wrapLines(c, shown, W - 260);
+    while ((lines.length > 2 || lines.some(l => c.measureText(l).width > W - 240)) && size > 54) { size -= 6; setF(); lines = wrapLines(c, shown, W - 260); }
+    const y0 = state.extras.includes('garland') ? 330 : 270;
+    lines.forEach((ln, i) => {
+      const y = y0 + i * size * 1.18;
+      c.save(); c.textAlign = 'center'; c.textBaseline = 'alphabetic'; setF();
+      c.direction = I18N.dir;
+      if (st.foil) { c.fillStyle = goldGrad(c, 0, y - size, 0, y + 10, P); c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 10; c.shadowOffsetY = 3; }
+      else { c.fillStyle = P.ink; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 8; }
+      c.fillText(ln, W / 2, y); c.restore();
+    });
+    if ('letterSpacing' in c) c.letterSpacing = '0px';   // don't let the lettering style leak into later text
+    // small ornament rule under the greeting
+    const ry = y0 + (lines.length - 1) * size * 1.18 + 50;
+    c.save(); c.strokeStyle = P.gold; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 160, ry); c.lineTo(W / 2 - 22, ry); c.moveTo(W / 2 + 22, ry); c.lineTo(W / 2 + 160, ry); c.stroke();
+    c.fillStyle = P.gold; c.beginPath(); c.moveTo(W / 2, ry - 10); c.lineTo(W / 2 + 10, ry); c.lineTo(W / 2, ry + 10); c.lineTo(W / 2 - 10, ry); c.closePath(); c.fill(); c.restore();
+  }
+  function dNote(c) {
+    const to = state.to.trim().slice(0, 24), from = state.from.trim().slice(0, 24);
+    if (!to && !from) return;
+    const P = pal(), line = to && from ? T('card.m.noteBoth', { to, from }) : to ? T('card.m.noteTo', { to }) : T('card.m.noteFrom', { from });
+    c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.direction = I18N.dir;
+    c.font = 'italic 46px Georgia, "Songti SC", serif'; c.fillStyle = P.ink; c.globalAlpha = 0.92;
+    // keep clear of the bottom-right watermark: sit centred, above it
+    c.fillText(line, W / 2 - 120, H - 300, W - 520); c.restore();
+  }
+  function renderDesigner(c) {
+    seed(state.seed); c.clearRect(0, 0, W, H);
+    dScene(c, state.scene || 'midnight');
+    dExtras(c, state.extras, 'back');
+    if (state.star) dHero(c, state.star);
+    dExtras(c, state.extras, 'front');
+    dGreeting(c); dNote(c);
+    drawWatermark(c);
+  }
   /* ---------------- watermark (always on, always last) ---------------- */
   function drawWatermark(c) {
     const pad = 36, lw = 330, lh = img.logo.width ? lw * img.logo.height / img.logo.width : 150;
     const bw = lw + 50, bh = lh + 70, bx = W - bw - pad, by = H - bh - pad;
     c.save();
-    c.globalAlpha = 0.9; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 18;
+    c.globalAlpha = 0.92; c.shadowColor = 'rgba(0,0,0,.25)'; c.shadowBlur = 18;
     c.fillStyle = '#ffffff'; rr(c, bx, by, bw, bh, 28); c.fill();
     c.shadowColor = 'transparent'; c.globalAlpha = 1;
     if (img.logo.width) c.drawImage(img.logo, bx + 25, by + 18, lw, lh);
     else { c.fillStyle = '#1565d8'; c.font = '900 80px system-ui'; c.textAlign = 'center'; c.fillText('AIKids', bx + bw / 2, by + bh / 2); }
     c.fillStyle = '#3b5784'; c.font = '700 26px "Trebuchet MS", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText('Made with Spark ✨', bx + bw / 2, by + bh - 28);
+    c.direction = 'ltr'; if ('letterSpacing' in c) c.letterSpacing = '0px';
+    c.fillText(T('card.made'), bx + bw / 2, by + bh - 28, bw - 30);
     c.restore();
   }
 
-  function render(c) {
+  function renderKids(c) {
     seed(state.seed);
     c.clearRect(0, 0, W, H);
     drawScene(c, state.scene || 'night');
@@ -308,41 +545,60 @@
     if (state.extras.includes('snow')) drawExtras(c, ['snow']);
     drawGreeting(c);
     drawNote(c);
-    // white card border
     c.save(); c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 18; rr(c, 9, 9, W - 18, H - 18, 40); c.stroke(); c.restore();
     drawWatermark(c);
   }
+  const render = c => (state.mode === 'designer' ? renderDesigner(c) : renderKids(c));
 
   /* ================= UI ================= */
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
+  /* Option lists per mode. Labels come from translations; ids drive the drawing. */
+  const KIDS = {
+    scenes: [['night', '🌙'], ['aurora', '🌌'], ['fireside', '🔥'], ['candy', '🍭']],
+    stars: [['tree', '🎄'], ['snowman', '⛄'], ['reindeer', '🦌'], ['santa', '🎅'], ['gift', '🎁'], ['spark', null]],
+    extras: [['snow', '❄️'], ['stars', '⭐'], ['lights', '💡'], ['gifts', '🎁'], ['baubles', '🔴'], ['holly', '🌿']],
+    styles: ['classic', 'bubbly', 'gold', 'candy'],
+  };
+  const DESIGN = {
+    scenes: ['midnight', 'aurora', 'velvet', 'nordic'],
+    stars: ['pine', 'flake', 'ornament', 'wreath', 'cabin', 'spark'],
+    extras: ['snow', 'bokeh', 'garland', 'stars', 'frame', 'confetti'],
+    styles: ['serif', 'script', 'modern', 'foil'],
+  };
+
+  /* small preview tiles drawn with the real designer renderer, so the buttons look like the result */
+  function thumb(kind, id) {
+    const cv = document.createElement('canvas'); cv.width = 240; cv.height = 320;
+    const c = cv.getContext('2d'), keep = { ...state, extras: [...state.extras] };
+    c.scale(240 / W, 320 / H);
+    seed(3);
+    if (kind === 'scene') { dScene(c, id); }
+    else if (kind === 'hero') { state.scene = state.scene || 'midnight'; dScene(c, state.scene); dHero(c, id); }
+    else if (kind === 'extra') { state.scene = state.scene || 'midnight'; dScene(c, state.scene); dExtras(c, [id], 'back'); dExtras(c, [id], 'front'); }
+    Object.assign(state, keep);
+    return cv.toDataURL('image/png');
+  }
+
   function open(screen, opts = {}) {
     const simple = !!opts.simple;
     const hooks = opts.hooks || {};
+    const mode = simple ? 'kids' : 'designer';
+    if (state.mode !== mode) Object.assign(state, { mode, scene: null, star: null, extras: [], greetKey: null, custom: '', to: '', from: '', style: simple ? 'classic' : 'serif' });
+    const P = simple ? 'card.k.' : 'card.m.';
+    const L = k => T(P + k);
     let step = 0;
-    const Q = [
-      { title: simple ? 'Where is your card?' : 'Question 1: Where is your card set?', sub: simple ? 'Tap a picture.' : 'Pick a festive scene for the background.',
-        speak: 'Where is your card? Tap a picture.' },
-      { title: simple ? 'Who is on your card?' : 'Question 2: Who is the star of your card?', sub: simple ? 'Tap one.' : 'Choose the main character.',
-        speak: 'Who is on your card? Tap one.' },
-      { title: simple ? 'Add some sparkle!' : 'Question 3: What decorations shall we add?', sub: simple ? 'Tap as many as you like!' : 'Pick as many as you like.',
-        speak: 'Add some sparkle! Tap as many as you like.' },
-      { title: simple ? 'What should it say?' : 'Question 4: What should your card say?', sub: simple ? 'Tap a message.' : 'Pick a greeting, or write your own — then choose a lettering style.',
-        speak: 'What should your card say? Tap a message.' },
-      { title: simple ? 'Who is it for?' : 'Question 5: Who is your card for?', sub: simple ? 'Type their name. A grown-up can help! (You can skip this.)' : 'Add who it\'s to and from. Use first names only — it\'s safer online!',
-        speak: 'Who is the card for? Type their name. A grown-up can help.' },
-    ];
 
     screen.innerHTML = `
       <div class="hud">
-        <button class="pill" id="cBack">⬅ Back</button>
-        <span class="pill">🎨 Holiday Card Maker</span>
+        <button class="pill" id="cBack">${T('card.back')}</button>
+        <span class="pill">${T('card.hud')}</span>
         <span class="pill" id="cStep"></span>
       </div>
-      <div class="play card-maker">
+      <div class="play card-maker ${simple ? '' : 'designer'}">
         <div class="card-preview">
-          <canvas id="cardCanvas" width="${W}" height="${H}" aria-label="Your holiday card preview"></canvas>
-          <button class="pill shuffle" id="cShuffle" title="Move the sparkles around">🔀 ${simple ? 'Mix up' : 'Shuffle sparkles'}</button>
+          <canvas id="cardCanvas" width="${W}" height="${H}" aria-label="${esc(T('card.aria'))}"></canvas>
+          <button class="pill shuffle" id="cShuffle">${L('shuffle')}</button>
         </div>
         <div class="card panel" id="cPanel"></div>
       </div>`;
@@ -353,37 +609,49 @@
     screen.querySelector('#cShuffle').onclick = () => { state.seed = Math.floor(Math.random() * 1e6); draw(); hooks.sfx && hooks.sfx('step'); };
     ready.then(draw);
 
-    const dots = () => `<div class="qdots">${Q.map((_, i) => `<span class="${i < step ? 'done' : i === step ? 'now' : ''}">${i < step ? '✓' : i + 1}</span>`).join('')}</div>`;
-    const picks = (items, sel, multi, attr) => `<div class="cgrid">${items.map(it => `
-      <button class="cpick pop-in ${multi ? (sel.includes(it.id) ? 'on' : '') : sel === it.id ? 'on' : ''}" data-${attr}="${it.id}">
-        <span class="ce">${it.html ? it.emoji : esc(it.emoji)}</span><span>${esc(simple && it.simple ? it.simple : it.label)}</span></button>`).join('')}</div>`;
-    const canNext = () => [state.scene, state.star, true, state.greeting || state.custom.trim(), true][step];
+    const dots = () => `<div class="qdots">${[0, 1, 2, 3, 4].map(i => `<span class="${i < step ? 'done' : i === step ? 'now' : ''}">${i < step ? '✓' : i + 1}</span>`).join('')}</div>`;
+    const kidPick = (list, sel, multi, attr, prefix) => `<div class="cgrid">${list.map(([id, em]) => `
+      <button class="cpick pop-in ${multi ? (sel.includes(id) ? 'on' : '') : sel === id ? 'on' : ''}" data-${attr}="${id}">
+        <span class="ce">${em ? esc(em) : '<img src="spark.png" alt="" class="ce-img">'}</span><span>${esc(T(prefix + id))}</span></button>`).join('')}</div>`;
+    const designPick = (list, sel, multi, attr, prefix, kind) => `<div class="cgrid dgrid">${list.map(id => `
+      <button class="cpick dpick ${multi ? (sel.includes(id) ? 'on' : '') : sel === id ? 'on' : ''}" data-${attr}="${id}">
+        <img class="dthumb" src="${thumb(kind, id)}" alt=""><span>${esc(T(prefix + id))}</span></button>`).join('')}</div>`;
+    const greets = () => [0, 1, 2, 3, 4, 5].map(i => P + 'g' + i);
+    const canNext = () => [state.scene, state.star, true, state.greetKey || state.custom.trim(), true][step];
 
     function show() {
-      screen.querySelector('#cStep').textContent = step < 5 ? `${simple ? 'Step' : 'Question'} ${step + 1} of 5` : '🎉 Ready!';
+      screen.querySelector('#cStep').textContent = step < 5 ? T(P + 'step', { n: step + 1 }) : T('card.ready');
       if (step === 5) return finish();
-      const q = Q[step];
+      const qTitle = L('q' + (step + 1)), qSub = L('q' + (step + 1) + 's');
       let body = '';
-      if (step === 0) body = picks(SCENES, state.scene, false, 'scene');
-      if (step === 1) body = picks(STARS, state.star, false, 'star');
-      if (step === 2) body = picks(EXTRAS, state.extras, true, 'extra');
+      if (simple) {
+        if (step === 0) body = kidPick(KIDS.scenes, state.scene, false, 'scene', 'card.k.scene.');
+        if (step === 1) body = kidPick(KIDS.stars, state.star, false, 'star', 'card.k.star.');
+        if (step === 2) body = kidPick(KIDS.extras, state.extras, true, 'extra', 'card.k.extra.');
+      } else {
+        if (step === 0) body = designPick(DESIGN.scenes, state.scene, false, 'scene', 'card.m.scene.', 'scene');
+        if (step === 1) body = designPick(DESIGN.stars, state.star, false, 'star', 'card.m.hero.', 'hero');
+        if (step === 2) body = designPick(DESIGN.extras, state.extras, true, 'extra', 'card.m.extra.', 'extra');
+      }
+      const styles = simple ? KIDS.styles : DESIGN.styles;
+      const styleFont = id => (simple ? (STYLES.find(s => s.id === id) || {}).font : (D_STYLES[id] || {}).font) || 'inherit';
       if (step === 3) body = `
-        <div class="chips">${GREETINGS.map(g => `<button class="chip ${state.greeting === g && !state.custom.trim() ? 'on' : ''}" data-greet="${esc(g)}">${esc(g)}</button>`).join('')}</div>
-        ${simple ? '' : `<div class="label" style="margin-top:14px;font-weight:800;color:#3b5784">…or write your own (max 40 letters):</div>
-          <input class="cinput" id="cCustom" maxlength="40" placeholder="e.g. Have a sparkly Christmas!" value="${esc(state.custom)}">`}
-        <div class="label" style="margin-top:14px;font-weight:800;color:#3b5784">${simple ? 'Pick your letters:' : 'Lettering style:'}</div>
-        <div class="chips">${STYLES.map(s => `<button class="chip ${state.style === s.id ? 'on' : ''}" data-style="${s.id}" style="font-family:${s.font.replace(/"/g, '&quot;')}">${s.label}</button>`).join('')}</div>`;
+        <div class="chips">${greets().map(k => `<button class="chip ${state.greetKey === k && !state.custom.trim() ? 'on' : ''}" data-greet="${k}">${esc(T(k))}</button>`).join('')}</div>
+        ${simple ? '' : `<div class="label clabel2">${L('own')}</div>
+          <input class="cinput" id="cCustom" maxlength="40" placeholder="${esc(L('ownPh'))}" value="${esc(state.custom)}">`}
+        <div class="label clabel2">${simple ? L('letters') : L('lettering')}</div>
+        <div class="chips">${styles.map(id => `<button class="chip ${state.style === id ? 'on' : ''}" data-style="${id}" style="font-family:${styleFont(id).replace(/"/g, '&quot;')}">${esc(T(P + 'style.' + id))}</button>`).join('')}</div>`;
       if (step === 4) body = `
-        <label class="clabel">${simple ? 'To:' : 'To (who is it for?)'}<input class="cinput" id="cTo" maxlength="24" placeholder="${simple ? 'Grandma' : 'e.g. Grandma'}" value="${esc(state.to)}"></label>
-        <label class="clabel">${simple ? 'From:' : 'From (your first name)'}<input class="cinput" id="cFrom" maxlength="24" placeholder="${simple ? 'Your name' : 'e.g. Sam'}" value="${esc(state.from)}"></label>
-        <p class="ctip">🛡️ ${simple ? 'Only use first names.' : 'Tip: use first names only — never put your address or school on things you share.'}</p>`;
+        <label class="clabel">${L('to')}<input class="cinput" id="cTo" maxlength="24" placeholder="${esc(L('toPh'))}" value="${esc(state.to)}"></label>
+        <label class="clabel">${L('from')}<input class="cinput" id="cFrom" maxlength="24" placeholder="${esc(L('fromPh'))}" value="${esc(state.from)}"></label>
+        <p class="ctip">${L('safe')}</p>`;
       panel.innerHTML = `${dots()}
-        <div class="frosty"><div class="face"><img src="spark.png" alt="Spark" class="face-img"></div><div class="bubble ${simple ? 'simple' : ''}"><b>${esc(q.title)}</b><br>${esc(q.sub)}</div></div>
+        <div class="frosty"><div class="face"><img src="spark.png" alt="Spark" class="face-img"></div><div class="bubble ${simple ? 'simple' : ''}"><b>${esc(qTitle)}</b><br>${esc(qSub)}</div></div>
         ${body}
         <div class="row">
-          ${step > 0 ? `<button class="btn ghost" id="cPrev">⬅ Back</button>` : ''}
-          <button class="btn green ${canNext() ? 'pulse' : ''}" id="cNext" ${canNext() ? '' : 'disabled'}>${step === 4 ? (simple ? 'Make my card! 🎉' : 'Finish my card! 🎉') : 'Next ➡'}</button>
-          ${simple ? '<button class="btn ghost" id="cRead">🔈 Read to me</button>' : ''}
+          ${step > 0 ? `<button class="btn ghost" id="cPrev">${T('card.prev')}</button>` : ''}
+          <button class="btn green ${canNext() ? 'pulse' : ''}" id="cNext" ${canNext() ? '' : 'disabled'}>${step === 4 ? L('finish') : T('card.next')}</button>
+          ${simple ? `<button class="btn ghost" id="cRead">${T('btn.read')}</button>` : ''}
         </div>`;
       const refresh = () => { const b = panel.querySelector('#cNext'); b.disabled = !canNext(); b.classList.toggle('pulse', !!canNext()); draw(); };
       panel.querySelectorAll('[data-scene]').forEach(b => b.onclick = () => { state.scene = b.dataset.scene; mark('[data-scene]', b); tap(b); refresh(); });
@@ -394,63 +662,60 @@
         b.classList.toggle('on', i < 0); tap(b); refresh();
       });
       panel.querySelectorAll('[data-greet]').forEach(b => b.onclick = () => {
-        state.greeting = b.dataset.greet; state.custom = ''; const ci = panel.querySelector('#cCustom'); if (ci) ci.value = '';
+        state.greetKey = b.dataset.greet; state.custom = ''; const ci = panel.querySelector('#cCustom'); if (ci) ci.value = '';
         mark('[data-greet]', b); tap(b); refresh();
       });
       panel.querySelectorAll('[data-style]').forEach(b => b.onclick = () => { state.style = b.dataset.style; mark('[data-style]', b); tap(b); refresh(); });
       const ci = panel.querySelector('#cCustom');
-      if (ci) ci.oninput = () => { state.custom = ci.value; panel.querySelectorAll('[data-greet]').forEach(x => x.classList.toggle('on', !ci.value.trim() && state.greeting === x.dataset.greet)); refresh(); };
+      if (ci) ci.oninput = () => { state.custom = ci.value; panel.querySelectorAll('[data-greet]').forEach(x => x.classList.toggle('on', !ci.value.trim() && state.greetKey === x.dataset.greet)); refresh(); };
       const to = panel.querySelector('#cTo'), from = panel.querySelector('#cFrom');
       if (to) { to.oninput = () => { state.to = to.value; draw(); }; from.oninput = () => { state.from = from.value; draw(); }; to.focus({ preventScroll: true }); }
       panel.querySelector('#cNext').onclick = () => { if (!canNext()) return; step++; hooks.sfx && hooks.sfx('good'); show(); };
       const prev = panel.querySelector('#cPrev'); if (prev) prev.onclick = () => { step--; show(); };
-      const rd = panel.querySelector('#cRead'); if (rd) rd.onclick = () => hooks.speak && hooks.speak(q.speak);
-      if (simple && hooks.speak) hooks.speak(q.speak);
+      const say = `${qTitle} ${qSub}`;
+      const rd = panel.querySelector('#cRead'); if (rd) rd.onclick = () => hooks.speak && hooks.speak(say);
+      if (simple && hooks.speak) hooks.speak(say);
     }
     function mark(sel, b) { panel.querySelectorAll(sel).forEach(x => x.classList.toggle('on', x === b)); }
-    function tap(b) { b.classList.remove('boing'); b.offsetWidth; b.classList.add('boing'); hooks.sfx && hooks.sfx('step'); hooks.burstAt && hooks.burstAt(b, ['✨', '⭐'], 6, 50); }
+    function tap(b) {
+      b.classList.remove('boing'); b.offsetWidth; b.classList.add('boing'); hooks.sfx && hooks.sfx('step');
+      if (simple && hooks.burstAt) hooks.burstAt(b, ['✨', '⭐'], 6, 50);          // calmer feedback for older players
+    }
 
     function finish() {
       draw();
       panel.innerHTML = `${dots()}
         <div class="frosty"><div class="face"><img src="spark.png" alt="Spark" class="face-img"></div><div class="bubble good ${simple ? 'simple' : ''}">
-          <b>${simple ? 'Wow! Your card is ready! 🎉' : 'Your card is ready! 🎉'}</b><br>
-          ${simple ? 'Tap the big button to save it.' : 'Download it as a picture to print, or to send to family (ask a grown-up first!).'}
+          <b>${L('done')}</b><br>${L('doneSub')}
         </div></div>
         <div class="row">
-          <button class="btn green pulse" id="cDl">⬇️ ${simple ? 'Save my card' : 'Download PNG'}</button>
-          <button class="btn ghost" id="cEdit">✏️ ${simple ? 'Change it' : 'Edit card'}</button>
-          <button class="btn ghost" id="cNew">🆕 ${simple ? 'New card' : 'Start a new card'}</button>
+          <button class="btn green pulse" id="cDl">${L('dl')}</button>
+          <button class="btn ghost" id="cEdit">${L('edit')}</button>
+          <button class="btn ghost" id="cNew">${L('new')}</button>
         </div>
-        <p class="ctip">👨‍👩‍👧 ${simple ? 'Ask a grown-up before you send it to anyone.' : 'Always check with a grown-up before sharing pictures online.'}</p>
+        <p class="ctip">${L('share')}</p>
         <div id="cMsg"></div>`;
-      hooks.sfx && hooks.sfx('win'); hooks.confetti && hooks.confetti();
-      if (simple && hooks.speak) hooks.speak('Wow! Your card is ready! Tap the big button to save it.');
+      hooks.sfx && hooks.sfx(simple ? 'win' : 'good');
+      if (simple) { hooks.confetti && hooks.confetti(); hooks.speak && hooks.speak(`${L('done')} ${L('doneSub')}`); }
       panel.querySelector('#cDl').onclick = download;
       panel.querySelector('#cEdit').onclick = () => { step = 0; show(); };
       panel.querySelector('#cNew').onclick = () => {
-        Object.assign(state, { scene: null, star: null, extras: [], greeting: null, custom: '', to: '', from: '', style: 'classic' });
+        Object.assign(state, { scene: null, star: null, extras: [], greetKey: null, custom: '', to: '', from: '', style: simple ? 'classic' : 'serif' });
         step = 0; show(); draw();
       };
     }
 
     function download() {
       const msg = panel.querySelector('#cMsg');
-      const name = 'christmas-card' + (state.to.trim() ? '-for-' + state.to.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '') + '.png';
-      const fallback = () => {
-        try {
-          const url = canvas.toDataURL('image/png');
-          const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-          done();
-        } catch (e) { msg.innerHTML = '<div class="msg err">Sorry — this browser blocked the download. Try right-clicking the card and choosing “Save image as…”.</div>'; }
-      };
-      const done = () => { msg.innerHTML = `<div class="msg ok">✅ Saved! Look for <b>${esc(name)}</b> in your Downloads.</div>`; hooks.sfx && hooks.sfx('collect'); };
+      const slug = state.to.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const name = 'christmas-card' + (slug ? '-for-' + slug : '') + '.png';
+      const done = () => { msg.innerHTML = `<div class="msg ok">${T('card.saved', { file: esc(name) })}</div>`; hooks.sfx && hooks.sfx('collect'); };
+      const save = href => { const a = document.createElement('a'); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
+      const fallback = () => { try { save(canvas.toDataURL('image/png')); done(); } catch (e) { msg.innerHTML = `<div class="msg err">${T('card.blocked')}</div>`; } };
       try {
         canvas.toBlob(b => {
           if (!b) return fallback();
-          const url = URL.createObjectURL(b), a = document.createElement('a');
-          a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 4000); done();
+          const url = URL.createObjectURL(b); save(url); setTimeout(() => URL.revokeObjectURL(url), 4000); done();
         }, 'image/png');
       } catch (e) { fallback(); }
     }

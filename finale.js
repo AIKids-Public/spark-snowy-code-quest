@@ -9,19 +9,21 @@
   const img = {};
   const ready = Promise.all(['logo', 'spark'].map(k => new Promise(res => { const i = new Image(); i.onload = i.onerror = () => res(); i.src = A[k] || ''; img[k] = i; })));
 
-  const TITLES = {
-    young: { rank: 'Snowflake Explorer', badge: '❄️', skill: 'asking kindly and giving clear, step-by-step instructions' },
-    middle: { rank: 'Reindeer Coder', badge: '🦌', skill: 'building clear prompts and coding with loops' },
-    teen: { rank: 'North Star Engineer', badge: '⭐', skill: 'prompt engineering and writing nested-loop code' },
-  };
+  const T = (k, p) => (window.I18N ? I18N.t(k, p) : k);
+  const BADGE = { young: '❄️', middle: '🦌', teen: '⭐' };
+  /* rank/skill text is looked up live, so it follows the chosen language */
+  const TITLES = {};
+  ['young', 'middle', 'teen'].forEach(id => Object.defineProperty(TITLES, id, {
+    enumerable: true, get: () => ({ rank: T('rank.' + id), badge: BADGE[id], skill: T('skill.' + id) }),
+  }));
 
   /* ======================= FINALE ======================= */
   function finale(opts) {
     const { tierId, simple, stars, maxStars, hooks = {} } = opts;
     const t = TITLES[tierId];
     const el = document.createElement('div');
-    el.className = 'finale';
-    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Quest complete');
+    el.className = 'finale'; el.dir = 'ltr';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', T('f.aria'));
     const houses = Array.from({ length: 9 }, (_, i) => `<div class="house" style="left:${3 + i * 11}%;--h:${50 + (i * 37) % 45}px;--w:${70 + (i * 23) % 40}px"><i></i><i></i><b class="${i % 2 ? 'r' : 'g'}"></b></div>`).join('');
     const sky = Array.from({ length: 70 }, (_, i) => `<span class="fstar" style="left:${(i * 37) % 100}%;top:${(i * 53) % 62}%;animation-delay:${(i % 10) * 0.3}s;--s:${1 + (i % 3)}px"></span>`).join('');
     el.innerHTML = `
@@ -35,7 +37,7 @@
           <svg class="f-reins" viewBox="0 0 300 40" preserveAspectRatio="none"><path d="M0 30 Q 80 5 150 22 T 300 18" /></svg>
           <div class="f-sleigh">
             <div class="f-sack">🎁🎁🎁</div>
-            <img src="spark.png" alt="Spark driving Santa's sleigh" class="f-spark">
+            <img src="spark.png" alt="${esc(T('f.alt'))}" class="f-spark">
             <svg class="f-body" viewBox="0 0 220 120" aria-hidden="true">
               <defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ff4d5e"/><stop offset="1" stop-color="#a51d28"/></linearGradient></defs>
               <path d="M20 20 H170 Q205 20 205 50 Q205 88 160 88 H45 Q20 88 20 60 Z" fill="url(#sg)" stroke="#ffd166" stroke-width="6"/>
@@ -48,16 +50,16 @@
         </div>
       </div>
       <div class="f-drops"></div>
-      <button class="f-skip" type="button">${simple ? 'Skip ⏭' : 'Skip animation ⏭'}</button>
-      <div class="f-panel" hidden>
+      <button class="f-skip" type="button">${T(simple ? 'f.skip.s' : 'f.skip')}</button>
+      <div class="f-panel" hidden dir="${window.I18N ? I18N.dir : 'ltr'}">
         <img src="spark.png" alt="" class="f-panel-spark">
-        <h2 class="rainbow">${simple ? 'You saved Christmas!' : 'Quest complete — you saved Christmas!'}</h2>
-        <p class="f-big">${t.badge} You are a <b>${t.rank}</b>! ${t.badge}</p>
-        <p class="${simple ? 'simple' : ''}">${simple ? 'Spark flew the sleigh. All the gifts got home! 🎁' : `Thanks to you, Spark delivered every present on time. You earned <b>${stars} / ${maxStars} ⭐</b>.`}</p>
+        <h2 class="rainbow">${T(simple ? 'f.h.s' : 'f.h')}</h2>
+        <p class="f-big">${t.badge} ${T('f.rank', { rank: t.rank })} ${t.badge}</p>
+        <p class="${simple ? 'simple' : ''}">${simple ? T('f.body.s') : T('f.body', { stars, max: maxStars })}</p>
         <div class="row" style="justify-content:center">
-          <button class="btn green pulse" id="fCert">📜 ${simple ? 'Get my certificate' : 'Get my certificate'}</button>
-          <button class="btn ghost" id="fReplay">🔁 ${simple ? 'Watch again' : 'Watch again'}</button>
-          <button class="btn ghost" id="fHome">🏠 Home</button>
+          <button class="btn green pulse" id="fCert">${T('f.cert')}</button>
+          <button class="btn ghost" id="fReplay">${T('f.replay')}</button>
+          <button class="btn ghost" id="fHome">${T('f.home')}</button>
         </div>
       </div>`;
     document.body.appendChild(el);
@@ -83,7 +85,7 @@
       el.classList.add('done'); panel.hidden = false;
       panel.querySelector('#fCert').focus({ preventScroll: true });
       hooks.confetti && hooks.confetti();
-      if (simple && hooks.speak) hooks.speak(`You saved Christmas! You are a ${t.rank}!`);
+      if (simple && hooks.speak) hooks.speak(T('f.say', { rank: t.rank }));
     }
     function play() {
       timers.splice(0).forEach(clearTimeout);
@@ -131,24 +133,24 @@
     c.save(); c.fillStyle = '#1565d8'; c.beginPath();
     c.moveTo(CW / 2 - 470, 150); c.lineTo(CW / 2 + 470, 150); c.lineTo(CW / 2 + 430, 195); c.lineTo(CW / 2 + 470, 240); c.lineTo(CW / 2 - 470, 240); c.lineTo(CW / 2 - 430, 195); c.closePath(); c.fill();
     c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '900 52px Georgia, "Times New Roman", serif';
-    c.fillText('Certificate of Achievement', CW / 2, 197); c.restore();
+    const ct = T('cert.title'); fit(c, ct, '900 {s}px Georgia, "Times New Roman", "Songti SC", serif', 52, 860, 28); c.fillText(ct, CW / 2, 197); c.restore();
     // body text
-    c.fillStyle = '#3b5784'; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-    c.font = 'italic 34px Georgia, serif'; c.fillText('This certificate is proudly presented to', CW / 2, 330);
-    const name = (d.name || '').trim() || 'A Super Coder';
+    c.fillStyle = '#3b5784'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.direction = window.I18N ? I18N.dir : 'ltr';
+    fit(c, T('cert.presented'), 'italic {s}px Georgia, "Songti SC", serif', 34, CW - 500, 20); c.fillText(T('cert.presented'), CW / 2, 330);
+    const name = (d.name || '').trim() || T('cert.default');
     const ns = fit(c, name, '900 {s}px "Trebuchet MS", "Nunito", system-ui, sans-serif', 104, CW - 520, 50);
     c.fillStyle = '#10213f'; c.font = `900 ${ns}px "Trebuchet MS", "Nunito", system-ui, sans-serif`; c.fillText(name, CW / 2, 445);
     c.strokeStyle = '#c9a227'; c.lineWidth = 3; c.beginPath(); c.moveTo(CW / 2 - 420, 478); c.lineTo(CW / 2 + 420, 478); c.stroke();
-    c.fillStyle = '#3b5784'; c.font = '32px Georgia, serif';
-    c.fillText('for saving Christmas in Spark\'s Snowy Code Quest', CW / 2, 540);
-    c.fillText(`and becoming a`, CW / 2, 590);
-    c.fillStyle = '#e63946'; c.font = '900 64px Georgia, serif'; c.fillText(`${t.rank}`, CW / 2, 668);
-    c.fillStyle = '#3b5784'; c.font = 'italic 28px Georgia, serif';
-    const sk = 'for ' + t.skill; fit(c, sk, 'italic {s}px Georgia, serif', 28, CW - 560, 20); c.fillText(sk, CW / 2, 722);
+    c.fillStyle = '#3b5784';
+    fit(c, T('cert.for'), '{s}px Georgia, "Songti SC", serif', 32, CW - 500, 20); c.fillText(T('cert.for'), CW / 2, 540);
+    fit(c, T('cert.becoming'), '{s}px Georgia, "Songti SC", serif', 32, CW - 500, 20); c.fillText(T('cert.becoming'), CW / 2, 590);
+    c.fillStyle = '#e63946'; fit(c, t.rank, '900 {s}px Georgia, "Songti SC", serif', 64, CW - 520, 30); c.fillText(`${t.rank}`, CW / 2, 668);
+    c.fillStyle = '#3b5784';
+    const sk = T('cert.skill', { skill: t.skill }); fit(c, sk, 'italic {s}px Georgia, "Songti SC", serif', 28, CW - 560, 18); c.fillText(sk, CW / 2, 722);
     // stars earned
     const n = Math.round((d.stars / d.maxStars) * 5);
     for (let i = 0; i < 5; i++) star5(c, CW / 2 - 160 + i * 80, 790, 30, i < n ? '#ffc53d' : '#e6dcc0');
-    c.fillStyle = '#7a6a3a'; c.font = '700 26px "Trebuchet MS", system-ui, sans-serif'; c.fillText(`${d.stars} of ${d.maxStars} stars earned`, CW / 2, 856);
+    c.fillStyle = '#7a6a3a'; c.font = '700 26px "Trebuchet MS", system-ui, sans-serif'; c.fillText(T('cert.stars', { stars: d.stars, max: d.maxStars }), CW / 2, 856);
     // seal (left) with tier badge
     const sx = 300, sy = 820;
     c.save(); c.fillStyle = '#e63946';
@@ -159,20 +161,20 @@
     c.beginPath(); c.arc(sx, sy, 78, 0, 7); c.strokeStyle = '#fff6d6'; c.lineWidth = 4; c.stroke(); c.restore();
     emoji(c, t.badge, sx, sy + 4, 82);
     // date + signature line (centre-bottom, kept clear of watermark)
-    const date = new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+    const date = new Date().toLocaleDateString(window.I18N ? I18N.locale + (I18N.lang === 'ar' ? '-u-nu-latn' : '') : undefined, { day: 'numeric', month: 'long', year: 'numeric' });   // Arabic: keep familiar 0-9 digits, like the rest of the game
     c.fillStyle = '#10213f'; c.font = '700 30px "Trebuchet MS", system-ui, sans-serif'; c.fillText(date, CW / 2 - 140, 960);
     c.strokeStyle = '#3b5784'; c.lineWidth = 2; c.beginPath(); c.moveTo(CW / 2 - 300, 975); c.lineTo(CW / 2 + 20, 975); c.stroke();
-    c.fillStyle = '#7a8aa5'; c.font = '22px "Trebuchet MS", system-ui, sans-serif'; c.fillText('Date', CW / 2 - 140, 1005);
+    c.fillStyle = '#7a8aa5'; c.font = '22px "Trebuchet MS", system-ui, sans-serif'; c.fillText(T('cert.date'), CW / 2 - 140, 1005);
     // Spark signing in the middle
     if (img.spark.width) { const h = 150, w = h * img.spark.width / img.spark.height; c.drawImage(img.spark, CW / 2 + 70, 870, w, h); }
-    c.fillStyle = '#1565d8'; c.font = 'italic 700 34px "Brush Script MT", "Segoe Script", cursive'; c.textAlign = 'left'; c.fillText('Spark ✨', CW / 2 + 190, 960);
-    c.textAlign = 'center'; c.fillStyle = '#7a8aa5'; c.font = '22px "Trebuchet MS", system-ui, sans-serif'; c.fillText('Quest guide', CW / 2 + 240, 1005);
+    c.fillStyle = '#1565d8'; c.font = 'italic 700 34px "Brush Script MT", "Segoe Script", cursive'; c.textAlign = 'left'; c.direction = 'ltr'; c.fillText(T('cert.sign'), CW / 2 + 190, 960);
+    c.textAlign = 'center'; c.fillStyle = '#7a8aa5'; c.font = '22px "Trebuchet MS", system-ui, sans-serif'; c.fillText(T('cert.guide'), CW / 2 + 240, 1005);
     // watermark — always last, bottom-right
     const lw = 290, lh = img.logo.width ? lw * img.logo.height / img.logo.width : 130, bw = lw + 44, bh = lh + 62, bx = CW - bw - 110, by = CH - bh - 105;
     c.save(); c.shadowColor = 'rgba(0,0,0,.18)'; c.shadowBlur = 14; c.fillStyle = '#fff'; rr(c, bx, by, bw, bh, 24); c.fill(); c.restore();
     if (img.logo.width) c.drawImage(img.logo, bx + 22, by + 14, lw, lh);
     c.fillStyle = '#3b5784'; c.font = '700 22px "Trebuchet MS", system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText('Made with Spark ✨', bx + bw / 2, by + bh - 24);
+    c.direction = 'ltr'; c.fillText(T('card.made'), bx + bw / 2, by + bh - 24, bw - 24);
   }
 
   function certificate(opts) {
@@ -182,22 +184,22 @@
     try { d.name = localStorage.getItem('sparkCertName') || ''; } catch (e) { /* ignore */ }
     screen.innerHTML = `
       <div class="hud">
-        <button class="pill" id="ceBack">⬅ ${simple ? 'Back' : 'Home'}</button>
-        <span class="pill">📜 ${simple ? 'My certificate' : 'Your certificate'}</span>
+        <button class="pill" id="ceBack">${T(simple ? 'ce.back.s' : 'ce.back')}</button>
+        <span class="pill">${T(simple ? 'ce.hud.s' : 'ce.hud')}</span>
         <span class="pill">${TITLES[tierId].badge} ${TITLES[tierId].rank}</span>
       </div>
       <div class="play cert-layout">
-        <div class="cert-preview"><canvas id="certCanvas" width="${CW}" height="${CH}" aria-label="Your certificate"></canvas></div>
+        <div class="cert-preview"><canvas id="certCanvas" width="${CW}" height="${CH}" aria-label="${esc(T('ce.aria'))}"></canvas></div>
         <div class="card panel">
           <div class="frosty"><div class="face"><img src="spark.png" alt="Spark" class="face-img"></div>
-            <div class="bubble good ${simple ? 'simple' : ''}"><b>${simple ? 'Well done! 🎉' : 'Congratulations! 🎉'}</b><br>
-            ${simple ? 'Type your name. Then save your certificate!' : 'Add your name, then download your certificate to print or keep.'}</div></div>
-          <label class="clabel">${simple ? 'Your name:' : 'Your first name'}
-            <input class="cinput" id="ceName" maxlength="28" placeholder="${simple ? 'Your name' : 'e.g. Sam'}" value="${esc(d.name)}"></label>
-          <p class="ctip">🛡️ ${simple ? 'Just your first name. A grown-up can help!' : 'Use your first name only — it\'s safer if the certificate gets shared.'}</p>
+            <div class="bubble good ${simple ? 'simple' : ''}"><b>${T(simple ? 'ce.well.s' : 'ce.well')}</b><br>
+            ${T(simple ? 'ce.sub.s' : 'ce.sub')}</div></div>
+          <label class="clabel">${T(simple ? 'ce.name.s' : 'ce.name')}
+            <input class="cinput" id="ceName" maxlength="28" placeholder="${esc(T(simple ? 'ce.ph.s' : 'ce.ph'))}" value="${esc(d.name)}"></label>
+          <p class="ctip">${T(simple ? 'ce.tip.s' : 'ce.tip')}</p>
           <div class="row">
-            <button class="btn green pulse" id="ceDl">⬇️ ${simple ? 'Save my certificate' : 'Download certificate (PNG)'}</button>
-            <button class="btn ghost" id="ceCard">🎨 ${simple ? 'Make a card' : 'Make a Christmas card'}</button>
+            <button class="btn green pulse" id="ceDl">${T(simple ? 'ce.dl.s' : 'ce.dl')}</button>
+            <button class="btn ghost" id="ceCard">${T(simple ? 'ce.card.s' : 'ce.card')}</button>
           </div>
           <div id="ceMsg"></div>
         </div>
@@ -208,21 +210,21 @@
     const inp = screen.querySelector('#ceName');
     inp.oninput = () => { d.name = inp.value; try { localStorage.setItem('sparkCertName', d.name); } catch (e) { /* ignore */ } draw(); };
     inp.focus({ preventScroll: true });
-    if (simple && hooks.speak) hooks.speak('Well done! Type your name. Then save your certificate!');
+    if (simple && hooks.speak) hooks.speak(T('ce.well.s') + ' ' + T('ce.sub.s'));
     screen.querySelector('#ceBack').onclick = () => hooks.home && hooks.home();
     screen.querySelector('#ceCard').onclick = () => hooks.card && hooks.card();
     screen.querySelector('#ceDl').onclick = () => {
       draw();
       const slug = (d.name.trim() || 'super-coder').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'super-coder';
       const fname = `spark-certificate-${slug}.png`, msg = screen.querySelector('#ceMsg');
-      const ok = () => { msg.innerHTML = `<div class="msg ok">✅ Saved! Look for <b>${esc(fname)}</b> in your Downloads.</div>`; hooks.sfx && hooks.sfx('collect'); };
+      const ok = () => { msg.innerHTML = `<div class="msg ok">${T('card.saved', { file: esc(fname) })}</div>`; hooks.sfx && hooks.sfx('collect'); };
       const save = href => { const a = document.createElement('a'); a.href = href; a.download = fname; document.body.appendChild(a); a.click(); a.remove(); };
       try {
         cv.toBlob(b => {
-          if (!b) { try { save(cv.toDataURL('image/png')); ok(); } catch (e) { msg.innerHTML = '<div class="msg err">Sorry — the download was blocked. Right-click the certificate and choose “Save image as…”.</div>'; } return; }
+          if (!b) { try { save(cv.toDataURL('image/png')); ok(); } catch (e) { msg.innerHTML = `<div class="msg err">${T('ce.blocked')}</div>`; } return; }
           const u = URL.createObjectURL(b); save(u); setTimeout(() => URL.revokeObjectURL(u), 4000); ok();
         }, 'image/png');
-      } catch (e) { msg.innerHTML = '<div class="msg err">Sorry — the download was blocked. Right-click the certificate and choose “Save image as…”.</div>'; }
+      } catch (e) { msg.innerHTML = `<div class="msg err">${T('ce.blocked')}</div>`; }
     };
   }
 

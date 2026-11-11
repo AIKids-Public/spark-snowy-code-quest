@@ -11,6 +11,8 @@ A free, festive browser game from **AIKids** that teaches two skills together:
 
 No download, account or ads, and no data leaves the device. It works on laptops, tablets and phones.
 
+🌐 **Six languages:** English, 中文 (Chinese), हिन्दी (Hindi), Español (Spanish), Français (French) and العربية (Arabic, right-to-left). Pick one from the 🌐 menu at the top.
+
 ---
 
 ## How to play
@@ -34,10 +36,10 @@ There are 5 missions per age group, 15 in total.
 
 ## Extras
 
-- 🎨 **Holiday Card Maker**: answer 5 questions to design a Christmas card, then download it as a picture.
+- 🎨 **Holiday Card Maker**: answer 5 questions to design a Christmas card, then download it as a picture. Ages 4–8 get bright, playful art; ages 9–16 get a calmer, more grown-up designer style.
 - 📜 **Certificate**: a personalised certificate of achievement for each age group, ready to print.
 - 🎵 **Calm holiday music**: an original lullaby you can switch on or off.
-- 🔈 **Read aloud**: a soft, friendly voice reads the words for younger players.
+- 🔈 **Read aloud**: a soft, friendly voice reads the words for younger players, in the chosen language. Voices come from the device, so availability varies.
 
 ## For parents and teachers
 
@@ -50,6 +52,7 @@ There are 5 missions per age group, 15 in total.
   - Full keyboard support.
   - Animations switch off automatically when the device is set to *reduce motion*.
 - **Offline**: once loaded, the game runs entirely in the browser.
+- **Languages**: the menus, missions, hints, cards and certificates are all translated. Coding commands (`up`, `right 2`, `repeat`) stay in English in every language, as in real programming languages.
 
 ## Running it yourself
 
@@ -67,6 +70,8 @@ There's nothing to install. Either:
 | `finale.js` | Sleigh-ride finale and certificate |
 | `music.js` | "Snowfall Lullaby", generated live with the Web Audio API |
 | `card-assets.js` | Embedded images, so cards and certificates can be exported as PNGs |
+| `i18n.js` | Translation system, with the English text |
+| `lang/*.js` | Chinese, Hindi, Spanish, French and Arabic translations |
 
 ## Licence
 

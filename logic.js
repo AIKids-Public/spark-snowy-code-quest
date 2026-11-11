@@ -476,7 +476,8 @@ function parseMap(rows) {
    tokens: {t:'move',dir,n} | {t:'melt'} | {t:'repeat',n} | {t:'end'}   (+ src index / line) */
 
 class CodeError extends Error {
-  constructor(msg, line) { super(msg); this.line = line; }
+  /* key/params let the UI show the message in the player's language; msg is the English fallback */
+  constructor(msg, line, key, params) { super(msg); this.line = line; this.key = key; this.params = params; }
 }
 
 function parseText(src) {
@@ -494,30 +495,30 @@ function parseText(src) {
     if (DIRV[w]) {
       let n = 1;
       if (isNum(toks[i + 1])) { n = +toks[i + 1].w; i++; }
-      if (n < 1 || n > 20) throw new CodeError(`"${w} ${n}" — use a number from 1 to 20.`, line);
+      if (n < 1 || n > 20) throw new CodeError(`"${w} ${n}" — use a number from 1 to 20.`, line, 'e.range', { w, n });
       out.push({ t: 'move', dir: w, n, src: line });
       i++;
     } else if (w === 'melt') {
       out.push({ t: 'melt', src: line }); i++;
     } else if (w === 'repeat') {
-      if (!isNum(toks[i + 1])) throw new CodeError('repeat needs a number, like:  repeat 3 { right 1 }', line);
+      if (!isNum(toks[i + 1])) throw new CodeError('repeat needs a number, like:  repeat 3 { right 1 }', line, 'e.repeatNum');
       const n = +toks[i + 1].w;
-      if (n < 1 || n > 20) throw new CodeError('repeat needs a number from 1 to 20.', line);
+      if (n < 1 || n > 20) throw new CodeError('repeat needs a number from 1 to 20.', line, 'e.repeatRange');
       i += 2;
       if (toks[i] && toks[i].w === 'times') i++;
-      if (!toks[i] || toks[i].w !== '{') throw new CodeError(`After "repeat ${n}" you need a {`, line);
+      if (!toks[i] || toks[i].w !== '{') throw new CodeError(`After "repeat ${n}" you need a {`, line, 'e.brace', { n });
       i++; depth++;
       out.push({ t: 'repeat', n, src: line });
     } else if (w === '}') {
-      if (depth === 0) throw new CodeError('There\'s an extra } with no repeat to close.', line);
+      if (depth === 0) throw new CodeError('There\'s an extra } with no repeat to close.', line, 'e.extra');
       depth--; out.push({ t: 'end', src: line }); i++;
     } else if (w === '{') {
-      throw new CodeError('A { must come right after "repeat N".', line);
+      throw new CodeError('A { must come right after "repeat N".', line, 'e.braceAfter');
     } else {
-      throw new CodeError(`I don't know "${w}". Use: up, down, left, right, melt, repeat.`, line);
+      throw new CodeError(`I don't know "${w}". Use: up, down, left, right, melt, repeat.`, line, 'e.unknown', { w });
     }
   }
-  if (depth > 0) throw new CodeError('A repeat is missing its closing }', lastLine);
+  if (depth > 0) throw new CodeError('A repeat is missing its closing }', lastLine, 'e.missingClose');
   return out;
 }
 
@@ -534,23 +535,23 @@ function compile(tokens) {
       pos++;
       if (tk.t === 'repeat') {
         const body = block();
-        if (pos >= tokens.length) throw new CodeError('A Repeat is missing its End.', tk.src);
+        if (pos >= tokens.length) throw new CodeError('A Repeat is missing its End.', tk.src, 'e.noEnd');
         pos++; // consume end
         for (let k = 0; k < tk.n; k++) {
           acts.push(...body);
-          if (acts.length > MAX_ACTIONS) throw new CodeError('That program is way too long — Spark would be walking until next Christmas!');
+          if (acts.length > MAX_ACTIONS) throw new CodeError('That program is way too long — Spark would be walking until next Christmas!', undefined, 'e.toolong');
         }
       } else if (tk.t === 'move') {
         for (let k = 0; k < tk.n; k++) acts.push({ t: 'step', dir: tk.dir, src: tk.src });
       } else if (tk.t === 'melt') {
         acts.push({ t: 'melt', src: tk.src });
       }
-      if (acts.length > MAX_ACTIONS) throw new CodeError('That program is way too long!');
+      if (acts.length > MAX_ACTIONS) throw new CodeError('That program is way too long!', undefined, 'e.toolong2');
     }
     return acts;
   }
   const acts = block();
-  if (pos < tokens.length) throw new CodeError('There\'s an End without a Repeat.', tokens[pos].src);
+  if (pos < tokens.length) throw new CodeError('There\'s an End without a Repeat.', tokens[pos].src, 'e.endNoRepeat');
   return acts;
 }
 
@@ -591,21 +592,27 @@ function simulate(lv, actions) {
 }
 
 /* ---------- Prompt-engineering rubric (13–16) ---------- */
-function scorePrompt(text, taskWords) {
+/* rubric (optional) = translated word lists for one language:
+   { context:[], detail:[], limits:[], polite:[], unkind:[], cjk:true } — matched as substrings, plus English always works.
+   For languages written without spaces (cjk), "enough detail" counts characters instead of words. */
+function scorePrompt(text, taskWords, rubric) {
   const t = ' ' + text.toLowerCase() + ' ';
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const has = re => re.test(t);
+  const R = rubric || null;
+  const inList = list => !!(R && list && list.some(w => t.includes(String(w).toLowerCase())));
+  const has = (re, list) => re.test(t) || inList(list);
+  const longEnough = words >= 10 || (R && R.cjk && text.replace(/\s/g, '').length >= 18);
   const checks = [
     { id: 'task', icon: '🎯', label: 'Clear task — say exactly what you want', ok: taskWords.some(w => t.includes(w)), required: true },
-    { id: 'context', icon: '🧭', label: 'Context — explain your goal (so / because / so that…)', ok: has(/\b(so|because|so that|in order|to help|need|goal|trying to)\b/) },
-    { id: 'detail', icon: '🔍', label: 'Specific details — presents, path, gates, squares…', ok: has(/(present|gift|map|path|route|spark|sleigh|grid|gate|lane|hill|toy|square|tile|block|next to|adjacent|ahead|beside|valley)/) },
-    { id: 'limits', icon: '🚧', label: 'Limits — keep it safe (only / don\'t / without…)', ok: has(/\b(only|without|don'?t|do not|must|exactly|just|safe|safely|careful|not|avoid|limit|keep|never)\b/) },
-    { id: 'length', icon: '✍️', label: 'Enough detail — at least 10 words', ok: words >= 10 },
+    { id: 'context', icon: '🧭', label: 'Context — explain your goal (so / because / so that…)', ok: has(/\b(so|because|so that|in order|to help|need|goal|trying to)\b/, R && R.context) },
+    { id: 'detail', icon: '🔍', label: 'Specific details — presents, path, gates, squares…', ok: has(/(present|gift|map|path|route|spark|sleigh|grid|gate|lane|hill|toy|square|tile|block|next to|adjacent|ahead|beside|valley)/, R && R.detail) },
+    { id: 'limits', icon: '🚧', label: 'Limits — keep it safe (only / don\'t / without…)', ok: has(/\b(only|without|don'?t|do not|must|exactly|just|safe|safely|careful|not|avoid|limit|keep|never)\b/, R && R.limits) },
+    { id: 'length', icon: '✍️', label: 'Enough detail — at least 10 words', ok: !!longEnough },
   ];
   const passedOthers = checks.filter(c => !c.required && c.ok).length;
   const pass = checks[0].ok && passedOthers >= 3;
-  const polite = has(/\b(please|thanks|thank you|cheers)\b/);
-  const unkind = has(/\b(stupid|idiot|dumb|shut up|useless|hate you)\b/);
+  const polite = has(/\b(please|thanks|thank you|cheers)\b/, R && R.polite);
+  const unkind = has(/\b(stupid|idiot|dumb|shut up|useless|hate you)\b/, R && R.unkind);
   return { checks, pass, polite, unkind, score: checks.filter(c => c.ok).length };
 }
 

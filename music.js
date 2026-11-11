@@ -144,7 +144,8 @@
   function save() { try { localStorage.setItem(PREF, on ? '1' : '0'); } catch (e) { /* ignore */ } }
   function render() {
     const b = document.getElementById('musicBtn'); if (!b) return;
-    b.textContent = on ? '🎵 Music on' : '🎵 Music off';
+    const T = window.I18N ? k => I18N.t(k) : k => ({ 'music.on': '🎵 Music on', 'music.off': '🎵 Music off' }[k]);
+    b.textContent = on ? T('music.on') : T('music.off');
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
     b.classList.toggle('on', on);
   }
@@ -158,5 +159,5 @@
   }
   document.addEventListener('DOMContentLoaded', render);
 
-  window.SparkMusic = { start, stop, toggle, duck, isOn: () => on, scheduleBar, buildChain, BAR, BARS: SONG.length };
+  window.SparkMusic = { start, stop, toggle, duck, isOn: () => on, relabel: render, scheduleBar, buildChain, BAR, BARS: SONG.length };
 })();
