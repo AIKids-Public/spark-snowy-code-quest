@@ -239,6 +239,32 @@
   .spark.zap img { animation: zap .5s; filter: drop-shadow(0 0 12px #ff9a3d); }
   @keyframes zap { 50% { transform: scale(1.06); } }
   .board.shake { animation: shake .35s; }
+  .cell .ob.rustle { display: inline-block; transform-origin: 50% 90%; animation: rustle .6s ease-in-out; }
+  .cell .ob.wobble { display: inline-block; transform-origin: 50% 95%; animation: wobble .6s ease-in-out; }
+  @keyframes rustle { 15% { transform: rotate(-9deg); } 35% { transform: rotate(8deg); } 55% { transform: rotate(-6deg); } 75% { transform: rotate(4deg); } }
+  @keyframes wobble { 20% { transform: rotate(-12deg) scale(1.05); } 45% { transform: rotate(10deg); } 70% { transform: rotate(-5deg); } }
+  .hitfx { position: absolute; z-index: 6; pointer-events: none; transform: translate(-50%, -50%); }
+  .hitfx.leaf { font-size: 1.35rem; opacity: 0; animation: leaffall 1.8s ease-in forwards; }
+  @keyframes leaffall {
+    0% { opacity: 0; transform: translate(-50%, -50%) rotate(0); }
+    10% { opacity: 1; }
+    30% { transform: translate(calc(-50% + var(--sway)), calc(-50% + var(--fall) * .3)) rotate(40deg); }
+    55% { transform: translate(calc(-50% - var(--sway)), calc(-50% + var(--fall) * .6)) rotate(-30deg); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--sway) * .5), calc(-50% + var(--fall))) rotate(60deg); }
+  }
+  .hitfx.snowball { width: 34%; aspect-ratio: 1; max-width: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff 0 45%, #dcefff 75%, #b9dcf5);
+    box-shadow: 0 2px 4px rgba(20,60,120,.35); animation: toss .45s ease-in forwards; }
+  @keyframes toss {
+    0% { transform: translate(-50%, -50%) scale(.6); }
+    50% { transform: translate(calc(-50% + var(--dx) * .5), calc(-50% + var(--dy) * .5 - var(--arc))) scale(1); }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1); opacity: .9; }
+  }
+  .hitfx.splat { width: var(--s); height: var(--s); border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,.95) 0 35%, rgba(255,255,255,.6) 55%, transparent 72%);
+    animation: splat .8s ease-out forwards; }
+  @keyframes splat { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; } }
   .board.aurora::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: var(--radius);
     background: linear-gradient(115deg, rgba(62,224,143,.0), rgba(62,224,143,.28), rgba(76,195,255,.22), rgba(190,110,255,.25), rgba(62,224,143,.0));
     background-size: 300% 100%; animation: aurora 6s linear infinite; mix-blend-mode: multiply; }

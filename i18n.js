@@ -114,7 +114,7 @@
     'melt.none': '✨ Melt! …but there was no ice next to Spark.', 'melt.none.s': '✨ Melt! But no ice is here.',
     'win.msg': '🎉 Spark made it to the sleigh with every present!', 'win.msg.s': '🎉 Hooray! You did it!',
     'bonk.edge': 'Whoops! Spark nearly walked off the edge of the map.', 'bonk.edge.s': 'Oops! That is the edge. Try a new way.',
-    'bonk.tree': 'Bonk! Spark bumped into a Christmas tree 🎄.', 'bonk.tree.s': 'Bonk! A tree 🎄 is in the way. Try again!',
+    'bonk.tree': 'Ouch! Spark bumped into a Christmas tree 🎄.', 'bonk.tree.s': 'Ouch! A tree 🎄 is in the way. Try again!',
     'bonk.snowman': 'Oof! Spark walked into a snowman ⛄. Sorry, snowman!', 'bonk.snowman.s': 'Oof! A snowman ⛄ is in the way. Try again!',
     'bonk.ice': 'Clunk! That\'s solid ice 🧊. Stand next to it and melt it first.', 'bonk.ice.s': 'Clunk! Ice 🧊! Tap ✨ Melt first.',
     'miss.one': 'Spark still needs to collect <b>{n}</b> more present 🎁 before going to the sleigh.',

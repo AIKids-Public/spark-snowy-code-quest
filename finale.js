@@ -85,7 +85,7 @@
       el.classList.add('done'); panel.hidden = false;
       panel.querySelector('#fCert').focus({ preventScroll: true });
       hooks.confetti && hooks.confetti();
-      if (simple && hooks.speak) hooks.speak(T('f.say', { rank: t.rank }));
+      if (simple && hooks.speak) hooks.speak(T('f.say', { rank: t.rank }), 'happy');
     }
     function play() {
       timers.splice(0).forEach(clearTimeout);
@@ -210,7 +210,7 @@
     const inp = screen.querySelector('#ceName');
     inp.oninput = () => { d.name = inp.value; try { localStorage.setItem('sparkCertName', d.name); } catch (e) { /* ignore */ } draw(); };
     inp.focus({ preventScroll: true });
-    if (simple && hooks.speak) hooks.speak(T('ce.well.s') + ' ' + T('ce.sub.s'));
+    if (simple && hooks.speak) hooks.speak(T('ce.well.s') + ' ' + T('ce.sub.s'), 'happy');
     screen.querySelector('#ceBack').onclick = () => hooks.home && hooks.home();
     screen.querySelector('#ceCard').onclick = () => hooks.card && hooks.card();
     screen.querySelector('#ceDl').onclick = () => {

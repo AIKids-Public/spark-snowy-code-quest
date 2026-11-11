@@ -696,7 +696,7 @@
         <p class="ctip">${L('share')}</p>
         <div id="cMsg"></div>`;
       hooks.sfx && hooks.sfx(simple ? 'win' : 'good');
-      if (simple) { hooks.confetti && hooks.confetti(); hooks.speak && hooks.speak(`${L('done')} ${L('doneSub')}`); }
+      if (simple) { hooks.confetti && hooks.confetti(); hooks.speak && hooks.speak(`${L('done')} ${L('doneSub')}`, 'happy'); }
       panel.querySelector('#cDl').onclick = download;
       panel.querySelector('#cEdit').onclick = () => { step = 0; show(); };
       panel.querySelector('#cNew').onclick = () => {

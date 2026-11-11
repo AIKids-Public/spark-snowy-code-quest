@@ -41,6 +41,8 @@
     step: () => tone(520, 0.06, 'triangle', 0.06),
     collect: () => { tone(988, 0.12, 'sine', 0.12); tone(1319, 0.2, 'sine', 0.1, 0.08); },
     bonk: () => tone(140, 0.25, 'square', 0.08),
+    rustle: () => [1400, 1150, 1600, 1250].forEach((f, i) => tone(f, 0.05, 'triangle', 0.035, 0.12 + i * 0.07)),
+    splat: () => { tone(520, 0.12, 'sine', 0.05, 0.1); tone(170, 0.18, 'triangle', 0.12, 0.42); tone(120, 0.2, 'sine', 0.08, 0.44); },
     melt: () => { tone(700, 0.3, 'sawtooth', 0.04); tone(350, 0.35, 'sine', 0.08, 0.05); },
     good: () => { tone(660, 0.12); tone(880, 0.18, 'sine', 0.12, 0.1); },
     bad: () => tone(260, 0.2, 'triangle', 0.1),
@@ -88,10 +90,12 @@
     const loc = String(I18N.locale || '').toLowerCase(), norm = l => String(l).toLowerCase().replace('_', '-');
     const all = speechSynthesis.getVoices().filter(v => re0.test(v.lang) && !avoid.test(v.name))
       .sort((a, b) => (norm(b.lang) === loc) - (norm(a.lang) === loc));   // exact region first (e.g. zh-CN before zh-TW)
-    for (const re of (L === 'en' ? VOICE_PREFS : VOICE_PREFS_BY_LANG[L] || [])) {
-      const hits = all.filter(v => re.test(v.name));
-      // prefer enhanced/premium/neural variants of the same voice
-      if (hits.length) { voice = hits.find(v => /enhanced|premium|neural|natural|online/i.test(v.name)) || hits[0]; return; }
+    const prefs = L === 'en' ? VOICE_PREFS : VOICE_PREFS_BY_LANG[L] || [];
+    const GOOD = /enhanced|premium|neural|natural|online/i;   // high-quality voices sound far more human
+    // 1st pass: a high-quality version of a voice we like; 2nd pass: any voice we like
+    for (const needGood of [true, false]) for (const re of prefs) {
+      const hits = all.filter(v => re.test(v.name) && (!needGood || GOOD.test(v.name)));
+      if (hits.length) { voice = hits.find(v => GOOD.test(v.name)) || hits[0]; return; }
     }
     voice = all[0] || null;   // a voice in the right language, even if we couldn't confirm it's female
     // last resort: any voice in this language (even one we'd normally skip) beats reading it in the wrong accent
@@ -105,21 +109,41 @@
   }
   if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.addEventListener('voiceschanged', pickVoice); }
 
-  function speak(text) {
+  /* Speak like a friendly person, not a robot: one sentence at a time (natural pauses), with the tone matching the moment.
+     mood: 'happy' (bright, bouncy) · 'gentle' (soft, for "try again") · 'story' (calm storyteller). Guessed if not given. */
+  const MOODS = {
+    happy:  { rate: 1.0,  pitch: 1.18 },
+    gentle: { rate: 0.86, pitch: 1.02 },
+    story:  { rate: 0.92, pitch: 1.08 },
+  };
+  function speak(text, mood) {
     if (!('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g, '').replace(/[^\p{L}\p{M}\p{N}\s.,!?'’\-。，！？、؟،।]/gu, ''));
+    const clean = String(text).replace(/<[^>]+>/g, ' ')
+      .replace(/\s*[—–:;]\s*/g, ', ')                       // dashes and colons become a short breath
+      .replace(/…/g, '... ')
+      .replace(/[^\p{L}\p{M}\p{N}\s.,!?'’\-。，！？、؟،।]/gu, '')
+      .replace(/\s+/g, ' ').replace(/\s+([.,!?。，！？؟،।])/g, '$1').trim();
+    if (!clean) return;
     if (!voice) pickVoice();
-    if (voice) { u.voice = voice; u.lang = voice.lang; }
-    else if (I18N.lang !== 'en' && speechSynthesis.getVoices().length) { noVoiceNotice(); return; }   // no voice for this language here
-    else u.lang = I18N.locale;
-    u.rate = 0.88;      // a little slower: calm and easy to follow
-    u.pitch = 1.05;     // just a touch brighter — high pitch sounds squeaky, not soft
-    u.volume = 0.9;
+    if (!voice && I18N.lang !== 'en' && speechSynthesis.getVoices().length) { noVoiceNotice(); return; }   // no voice for this language here
+    if (!mood) mood = /^(yay|yes|great|well done|hooray|you did it|amazing|brilliant|super|perfect|wow)/i.test(clean) ? 'happy' : 'story';
+    const base = MOODS[mood] || MOODS.story;
+    // split into sentences, keeping the end mark so each one gets its own tune
+    const parts = clean.match(/[^.!?。！？؟।]+[.!?。！？؟।]*/g) || [clean];
     const M = window.SparkMusic;
-    u.onstart = () => M && M.duck(true);
-    u.onend = u.onerror = () => M && M.duck(false);
-    speechSynthesis.speak(u);
+    parts.map(p => p.trim()).filter(p => /[\p{L}\p{N}]/u.test(p)).forEach((p, i, all) => {
+      const u = new SpeechSynthesisUtterance(p);
+      if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = I18N.locale;
+      const excited = /[!！]$/.test(p), question = /[?？؟]$/.test(p);
+      const wobble = ((i * 37) % 7 - 3) * 0.012;              // tiny variation so sentences don't all sound the same
+      u.pitch = Math.min(1.32, base.pitch + wobble + (excited ? 0.08 : 0) + (question ? 0.05 : 0));
+      u.rate = base.rate + (excited ? 0.04 : 0) + (i === all.length - 1 && !excited ? -0.03 : 0);   // slow a touch at the end, like a person
+      u.volume = 0.95;
+      if (i === 0) u.onstart = () => M && M.duck(true);
+      if (i === all.length - 1) u.onend = u.onerror = () => M && M.duck(false);
+      speechSynthesis.speak(u);
+    });
   }
 
   /* ---------------- snow background ---------------- */
@@ -387,8 +411,36 @@
       tick();
     }
 
+    /* Fun reaction when Spark bumps a tree (leaves fall) or a snowman (it throws a snowball back). */
+    function hitFx(kind, ox, oy, sx, sy) {
+      const ob = cells[key(ox, oy)] && cells[key(ox, oy)].querySelector('.ob');
+      if (ob) { ob.classList.remove('rustle', 'wobble'); ob.offsetWidth; ob.classList.add(kind === 'tree' ? 'rustle' : 'wobble'); setTimeout(() => ob.classList.remove('rustle', 'wobble'), 700); }
+      if (kind === 'tree') sfx.rustle(); else sfx.splat();
+      if (calm()) return;
+      const cw = cellW(), ch = cellH();
+      const add = (cls, text, x, y, vars, life) => {
+        const el = document.createElement('span');
+        el.className = 'hitfx ' + cls; el.textContent = text;
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        for (const v in vars) el.style.setProperty(v, vars[v]);
+        board.appendChild(el); setTimeout(() => el.remove(), life);
+      };
+      if (kind === 'tree') {
+        ['🍃', '🍂', '🍃', '❄️', '🍂', '🍃'].forEach((leaf, i) => add('leaf', leaf,
+          (ox + 0.2 + Math.random() * 0.6) * cw, (oy + 0.15 + Math.random() * 0.3) * ch,
+          { '--fall': ch * (0.9 + Math.random() * 0.5) + 'px', '--sway': cw * (0.15 + Math.random() * 0.15) * (i % 2 ? 1 : -1) + 'px', animationDelay: i * 0.12 + 's' }, 2200));
+      } else {
+        add('snowball', '', (ox + 0.5) * cw, (oy + 0.3) * ch, { '--dx': (sx - ox) * cw + 'px', '--dy': ((sy - oy) + 0.2) * ch + 'px', '--arc': ch * 0.6 + 'px' }, 900);
+        setTimeout(() => {
+          burst(board, (sx + 0.5) * cw, (sy + 0.5) * ch, ['❄️', '⚪', '❄️'], 8, cw * 0.55);
+          add('splat', '', (sx + 0.5) * cw, (sy + 0.45) * ch, { '--s': cw * 0.7 + 'px' }, 900);
+        }, 450);
+      }
+    }
+
     function resetBoard() {
       cancelReset();
+      board.querySelectorAll('.hitfx').forEach(el => el.remove());
       timers.forEach(clearTimeout); timers = [];
       Object.values(cells).forEach(c => c.classList.remove('got', 'melted', 'trail'));
       spark.classList.remove('bonk', 'happy', 'walk'); spark.classList.add('idle');
@@ -440,8 +492,8 @@
       $('#readBtn').onclick = () => speak(m.prompt.question + ' ' + opts.map((o, i) => t('speak.number', { n: i + 1, text: o.text })).join(' '));
       panel.querySelectorAll('.opt').forEach(b => b.onclick = () => {
         const o = opts[+b.dataset.i];
-        if (o.good) { sfx.good(); burstAt(b, ['⭐', '✨', '💙'], 14, 90); speak(o.feedback); promptSuccess(esc(o.feedback)); }
-        else { sfx.bad(); b.classList.add('wrong', 'shake'); $('#fb').innerHTML = frostySays(`<span class="simple">${esc(o.feedback)}</span>`, 'bad'); speak(o.feedback); }
+        if (o.good) { sfx.good(); burstAt(b, ['⭐', '✨', '💙'], 14, 90); speak(o.feedback, 'happy'); promptSuccess(esc(o.feedback)); }
+        else { sfx.bad(); b.classList.add('wrong', 'shake'); $('#fb').innerHTML = frostySays(`<span class="simple">${esc(o.feedback)}</span>`, 'bad'); speak(o.feedback, 'gentle'); }
       });
     }
 
@@ -520,7 +572,7 @@
         <div class="pop-in">${frostySays(tier.simple ? `<span class="simple">${feedback}</span>` : feedback, 'good')}</div>
         <div class="pop-in" style="animation-delay:.3s">${frostySays(tier.simple ? `<span class="simple">${reward}</span>` : reward, 'good')}</div>
         <div class="row"><button class="btn green pulse" id="codeBtn">${ts(tier.simple, 'btn.code')}</button></div>`;
-      if (tier.simple) speak(reward.replace(/<[^>]+>/g, ''));
+      if (tier.simple) speak(reward.replace(/<[^>]+>/g, ''), 'happy');
       $('#codeBtn').focus({ preventScroll: true });
       $('#codeBtn').onclick = codeStep;
     }
@@ -673,7 +725,7 @@
       if (fails >= 2) $('#hintBtn').classList.remove('hidden');
       msg('warn', html + (fails >= 2 ? ts(tier.simple, 'fail.hint') : ''));
       scheduleReset();
-      if (tier.simple) speak(html.replace(/<[^>]+>/g, ''));
+      if (tier.simple) speak(html.replace(/<[^>]+>/g, ''), 'gentle');
     }
 
     function run() {
@@ -717,7 +769,8 @@
         } else if (e.t === 'bonk') {
           spark.classList.remove('bonk'); spark.offsetWidth; spark.classList.add('bonk'); sfx.bonk();
           const cs = board.clientWidth / lv.w, [ddx, ddy] = DIRV[e.dir];
-          burst(board, (e.x + 0.5 + ddx * 0.5) * cs, (e.y + 0.5 + ddy * 0.5) * cs, ['💫', '⭐'], 6, cs * 0.6);
+          if (e.why === 'tree' || e.why === 'snowman') hitFx(e.why, e.x + ddx, e.y + ddy, e.x, e.y);
+          else burst(board, (e.x + 0.5 + ddx * 0.5) * cs, (e.y + 0.5 + ddy * 0.5) * cs, ['💫', '⭐'], 6, cs * 0.6);
           board.classList.remove('shake'); board.offsetWidth; board.classList.add('shake');
         }
       }, i * tier.speed)));
@@ -757,7 +810,7 @@
           <button class="btn ghost" id="mRetry">${ts(tier.simple, 'w.again')}</button>
         </div>`, card => {
         $('#mNext', card).onclick = () => last ? go(() => openFinale(tierId)) : go(() => playMission(tierId, mi + 1));
-        if (tier.simple) speak(t(last ? 'speak.alldone' : 'speak.done'));
+        if (tier.simple) speak(t(last ? 'speak.alldone' : 'speak.done'), 'happy');
         const st = card.querySelectorAll('.stars span:not(.dim)');
         st.forEach((el, i) => setTimeout(() => { burstAt(el, ['✨', '⭐'], 8, 50); tone(880 + i * 220, 0.15, 'sine', 0.1); }, 350 + i * 260));
         $('#mRetry', card).onclick = () => { closeModal(); resetBoard(); $('#out').innerHTML = ''; };
