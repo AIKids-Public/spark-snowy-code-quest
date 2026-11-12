@@ -37,6 +37,7 @@ There are 5 missions per age group, 15 in total.
 ## Extras
 
 - 🎨 **Holiday Card Maker**: answer 5 questions to design a Christmas card, then download it as a picture. Ages 4–8 get bright, playful art; ages 9–16 get a calmer, more grown-up designer style.
+- 🤖 **What you learned, with Spark**: after the sleigh ride, Spark explains in five short slides what the player practised and how it connects to real AI: clear prompting, code and loops, debugging, and staying safe. The wording is pitched at each age group.
 - 📜 **Certificate**: a personalised certificate of achievement for each age group, ready to print.
 - 🎵 **Calm holiday music**: an original lullaby you can switch on or off.
 - 🔈 **Read aloud**: a soft, friendly voice reads the words for younger players, in the chosen language. Voices come from the device, so availability varies.

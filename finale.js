@@ -51,6 +51,22 @@
       </div>
       <div class="f-drops"></div>
       <button class="f-skip" type="button">${T(simple ? 'f.skip.s' : 'f.skip')}</button>
+      <div class="f-learn" hidden dir="${window.I18N ? I18N.dir : 'ltr'}" role="group" aria-label="${esc(T('learn.aria'))}">
+        <img src="spark.png" alt="" class="f-learn-spark">
+        <div class="f-learn-bubble" aria-live="polite">
+          <div class="f-learn-tag">${T('learn.tag')}</div>
+          <h3 class="f-learn-h"></h3>
+          <p class="f-learn-b ${simple ? 'simple' : ''}"></p>
+          <div class="f-learn-dots" aria-hidden="true">${[1, 2, 3, 4, 5].map(() => '<i></i>').join('')}</div>
+          <span class="sr-only f-learn-step"></span>
+          <div class="row f-learn-nav">
+            <button class="btn ghost" id="lBack">${T('learn.back')}</button>
+            <button class="btn ghost" id="lRead">${T('learn.read')}</button>
+            <button class="btn green" id="lNext">${T('learn.next')}</button>
+          </div>
+          <button class="f-learn-skip" id="lSkip" type="button">${T('learn.skip')}</button>
+        </div>
+      </div>
       <div class="f-panel" hidden dir="${window.I18N ? I18N.dir : 'ltr'}">
         <img src="spark.png" alt="" class="f-panel-spark">
         <h2 class="rainbow">${T(simple ? 'f.h.s' : 'f.h')}</h2>
@@ -58,6 +74,7 @@
         <p class="${simple ? 'simple' : ''}">${simple ? T('f.body.s') : T('f.body', { stars, max: maxStars })}</p>
         <div class="row" style="justify-content:center">
           <button class="btn green pulse" id="fCert">${T('f.cert')}</button>
+          <button class="btn ghost" id="fLearn">${T('learn.again')}</button>
           <button class="btn ghost" id="fReplay">${T('f.replay')}</button>
           <button class="btn ghost" id="fHome">${T('f.home')}</button>
         </div>
@@ -67,6 +84,40 @@
     const timers = [];
     const later = (fn, ms) => timers.push(setTimeout(fn, ms));
     const ride = el.querySelector('.f-ride'), drops = el.querySelector('.f-drops'), panel = el.querySelector('.f-panel');
+    const learn = el.querySelector('.f-learn'), SLIDES = 5;
+    let slide = 0, learned = false;
+
+    /* Spark narrates what the player learned and how it connects to AI, one short slide at a time. */
+    function sayText(i) {
+      const strip = h => h.replace(/<[^>]+>/g, '');
+      return strip(T(`learn.${tierId}.${i + 1}.h`)) + '. ' + strip(T(`learn.${tierId}.${i + 1}.b`));
+    }
+    function renderSlide(speakIt) {
+      learn.querySelector('.f-learn-h').innerHTML = T(`learn.${tierId}.${slide + 1}.h`);
+      learn.querySelector('.f-learn-b').innerHTML = T(`learn.${tierId}.${slide + 1}.b`);
+      learn.querySelector('.f-learn-step').textContent = T('learn.step', { n: slide + 1, total: SLIDES });
+      learn.querySelectorAll('.f-learn-dots i').forEach((d, k) => d.classList.toggle('on', k === slide));
+      learn.querySelector('#lBack').style.visibility = slide ? 'visible' : 'hidden';
+      learn.querySelector('#lNext').textContent = T(slide === SLIDES - 1 ? 'learn.finish' : 'learn.next');
+      const bub = learn.querySelector('.f-learn-bubble'); bub.classList.remove('pop'); void bub.offsetWidth; bub.classList.add('pop');
+      const sp = learn.querySelector('.f-learn-spark'); sp.classList.remove('talk'); void sp.offsetWidth; sp.classList.add('talk');
+      if (speakIt && hooks.speak) hooks.speak(sayText(slide), 'story');
+    }
+    function showLearn() {
+      if (!learn.hidden) return;
+      el.classList.add('done'); panel.hidden = true; learn.hidden = false;
+      slide = 0; renderSlide(simple);
+      learn.querySelector('#lNext').focus({ preventScroll: true });
+    }
+    function endLearn() {
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      learn.hidden = true; learned = true; showPanel();
+    }
+    learn.querySelector('#lNext').onclick = () => { hooks.sfx && hooks.sfx('step'); if (slide < SLIDES - 1) { slide++; renderSlide(simple); } else endLearn(); };
+    learn.querySelector('#lBack').onclick = () => { if (slide > 0) { slide--; renderSlide(simple); } };
+    learn.querySelector('#lRead').onclick = () => hooks.speak && hooks.speak(sayText(slide), 'story');
+    learn.querySelector('#lSkip').onclick = endLearn;
+    const afterRide = () => (learned ? showPanel() : showLearn());
 
     function dropGifts() {
       // presents fall from the sleigh onto chimneys as it crosses the sky
@@ -82,6 +133,7 @@
     }
     function showPanel() {
       if (!panel.hidden) return;
+      learn.hidden = true;
       el.classList.add('done'); panel.hidden = false;
       panel.querySelector('#fCert').focus({ preventScroll: true });
       hooks.confetti && hooks.confetti();
@@ -89,18 +141,24 @@
     }
     function play() {
       timers.splice(0).forEach(clearTimeout);
-      el.classList.remove('done', 'go'); panel.hidden = true; drops.innerHTML = '';
-      if (calm()) { el.classList.add('static'); showPanel(); return; }
+      el.classList.remove('done', 'go'); panel.hidden = true; learn.hidden = true; drops.innerHTML = '';
+      if (calm()) { el.classList.add('static'); afterRide(); return; }
       void el.offsetWidth; el.classList.add('go');
       hooks.sfx && hooks.sfx('win');
       later(() => hooks.tone && [1047, 1319, 1568, 2093].forEach((f, i) => hooks.tone(f, 0.3, 'sine', 0.07, i * 0.12)), 900);
       dropGifts();
-      later(showPanel, 6400);
+      later(afterRide, 6400);
     }
-    const close = () => { timers.forEach(clearTimeout); el.remove(); document.body.classList.remove('no-scroll'); removeEventListener('keydown', onKey); };
-    const onKey = e => { if (e.key === 'Escape') { if (panel.hidden) showPanel(); else { close(); hooks.home && hooks.home(); } } };
+    const close = () => { if (window.speechSynthesis) speechSynthesis.cancel(); timers.forEach(clearTimeout); el.remove(); document.body.classList.remove('no-scroll'); removeEventListener('keydown', onKey); };
+    const onKey = e => {
+      if (e.key !== 'Escape') return;
+      if (!learn.hidden) endLearn();
+      else if (panel.hidden) { timers.forEach(clearTimeout); el.classList.remove('go'); el.classList.add('static'); afterRide(); }
+      else { close(); hooks.home && hooks.home(); }
+    };
     addEventListener('keydown', onKey);
-    el.querySelector('.f-skip').onclick = () => { timers.forEach(clearTimeout); el.classList.remove('go'); el.classList.add('static'); showPanel(); };
+    el.querySelector('.f-skip').onclick = () => { timers.forEach(clearTimeout); el.classList.remove('go'); el.classList.add('static'); afterRide(); };
+    el.querySelector('#fLearn').onclick = () => { panel.hidden = true; learn.hidden = true; showLearn(); };
     el.querySelector('#fReplay').onclick = () => { el.classList.remove('static'); play(); };
     el.querySelector('#fHome').onclick = () => { close(); hooks.home && hooks.home(); };
     el.querySelector('#fCert').onclick = () => { close(); certificate({ tierId, simple, stars, maxStars, hooks }); };
