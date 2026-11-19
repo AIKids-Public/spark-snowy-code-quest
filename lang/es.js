@@ -303,6 +303,8 @@ I18N.register({
     'card.m.edit': '✏️ Editar tarjeta',
     'card.m.new': '🆕 Empezar una tarjeta nueva',
     'card.m.share': '👨‍👩‍👧 Consulta siempre con un adulto antes de compartir imágenes en internet.',
+    "card.m.tagTo": "Para",
+    "card.m.tagFrom": "De",
     'card.m.noteBoth': 'Para {to}  ·  De {from}',
     'card.m.noteTo': 'Para {to}',
     'card.m.noteFrom': 'De {from}',

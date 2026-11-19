@@ -502,14 +502,58 @@
     c.save(); c.strokeStyle = P.gold; c.lineWidth = 2; c.beginPath(); c.moveTo(W / 2 - 160, ry); c.lineTo(W / 2 - 22, ry); c.moveTo(W / 2 + 22, ry); c.lineTo(W / 2 + 160, ry); c.stroke();
     c.fillStyle = P.gold; c.beginPath(); c.moveTo(W / 2, ry - 10); c.lineTo(W / 2 + 10, ry); c.lineTo(W / 2, ry + 10); c.lineTo(W / 2 - 10, ry); c.closePath(); c.fill(); c.restore();
   }
+  /* To / From as a cream gift tag on a gold string, tucked into the bottom-left corner (clear of the watermark). */
   function dNote(c) {
     const to = state.to.trim().slice(0, 24), from = state.from.trim().slice(0, 24);
     if (!to && !from) return;
-    const P = pal(), line = to && from ? T('card.m.noteBoth', { to, from }) : to ? T('card.m.noteTo', { to }) : T('card.m.noteFrom', { from });
-    c.save(); c.textAlign = 'center'; c.textBaseline = 'middle'; c.direction = I18N.dir;
-    c.font = 'italic 46px Georgia, "Songti SC", serif'; c.fillStyle = P.ink; c.globalAlpha = 0.92;
-    // keep clear of the bottom-right watermark: sit centred, above it
-    c.fillText(line, W / 2 - 120, H - 300, W - 520); c.restore();
+    const P = pal(), rtl = I18N.dir === 'rtl';
+    const spaced = ['en', 'es', 'fr'].includes(I18N.lang);           // letter-spacing would break joined scripts (Arabic, Hindi)
+    const SCRIPT = D_STYLES.script.font, CAPS = '"Avenir Next", "Helvetica Neue", "PingFang SC", "Segoe UI", system-ui, sans-serif';
+    const PAPER = '#f7f0e1', INK = '#3a2c22', LABEL = '#9a7434';
+    const tw = 420, th = to && from ? 270 : 180, hole = -tw / 2 + 36;
+    const tx0 = -tw / 2 + 76, tx1 = tw / 2 - 30, textX = rtl ? tx1 : tx0, maxW = tx1 - tx0;
+
+    const label = (t, y) => {
+      c.font = `700 ${spaced ? 20 : 28}px ${CAPS}`; if ('letterSpacing' in c) c.letterSpacing = spaced ? '6px' : '0px';
+      c.fillStyle = LABEL; c.fillText(spaced ? t.toLocaleUpperCase() : t, textX, y);
+      if ('letterSpacing' in c) c.letterSpacing = '0px';
+    };
+    const name = (t, y) => {
+      let size = 58; c.font = `400 ${size}px ${SCRIPT}`;
+      while (c.measureText(t).width > maxW && size > 36) { size -= 2; c.font = `400 ${size}px ${SCRIPT}`; }
+      c.fillStyle = INK; c.fillText(t, textX, y, maxW);                // maxWidth squeezes very long names instead of overflowing
+    };
+
+    c.save();
+    c.translate(300, 1335); c.rotate(-0.07);
+    // tag: a rectangle with the two left corners clipped, like a luggage label
+    c.beginPath();
+    c.moveTo(-tw / 2 + 56, -th / 2); c.lineTo(tw / 2 - 16, -th / 2); c.quadraticCurveTo(tw / 2, -th / 2, tw / 2, -th / 2 + 16);
+    c.lineTo(tw / 2, th / 2 - 16); c.quadraticCurveTo(tw / 2, th / 2, tw / 2 - 16, th / 2);
+    c.lineTo(-tw / 2 + 56, th / 2); c.lineTo(-tw / 2, th / 2 - 56); c.lineTo(-tw / 2, -th / 2 + 56); c.closePath();
+    c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 22; c.shadowOffsetY = 8;
+    c.fillStyle = PAPER; c.fill();
+    c.shadowColor = 'transparent'; c.strokeStyle = P.gold; c.lineWidth = 2.5; c.stroke();
+    // inner dashed border, for a printed-label feel
+    c.save(); c.setLineDash([6, 6]); c.strokeStyle = 'rgba(154,116,52,.35)'; c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(-tw / 2 + 62, -th / 2 + 12); c.lineTo(tw / 2 - 12, -th / 2 + 12); c.lineTo(tw / 2 - 12, th / 2 - 12); c.lineTo(-tw / 2 + 62, th / 2 - 12);
+    c.lineTo(-tw / 2 + 12, th / 2 - 62); c.lineTo(-tw / 2 + 12, -th / 2 + 62); c.closePath(); c.stroke(); c.restore();
+    // reinforced hole, with the gold string tied through it
+    c.fillStyle = P.gold; c.beginPath(); c.arc(hole, 0, 15, 0, 7); c.fill();
+    c.fillStyle = PAPER; c.beginPath(); c.arc(hole, 0, 7, 0, 7); c.fill();
+    c.strokeStyle = P.gold; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(hole, 0); c.bezierCurveTo(hole - 70, -40, hole - 10, -th / 2 - 90, hole - 40, -th / 2 - 200); c.stroke();
+    c.beginPath(); c.moveTo(hole, 0); c.bezierCurveTo(hole - 40, 10, hole - 80, -20, hole - 70, -60); c.stroke();
+
+    c.textBaseline = 'alphabetic'; c.direction = I18N.dir; c.textAlign = rtl ? 'right' : 'left';
+    if (to && from) {
+      label(T('card.m.tagTo'), -62); name(to, -8);
+      c.strokeStyle = 'rgba(154,116,52,.45)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(tx0, 18); c.lineTo(tx1, 18); c.stroke();
+      label(T('card.m.tagFrom'), 60); name(from, 114);
+    } else {
+      label(T(to ? 'card.m.tagTo' : 'card.m.tagFrom'), -16); name(to || from, 40);
+    }
+    c.restore();
   }
   function renderDesigner(c) {
     seed(state.seed); c.clearRect(0, 0, W, H);

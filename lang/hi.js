@@ -303,6 +303,8 @@ I18N.register({
     'card.m.edit': '✏️ कार्ड बदलो',
     'card.m.new': '🆕 नया कार्ड शुरू करो',
     'card.m.share': '👨‍👩‍👧 ऑनलाइन तस्वीरें शेयर करने से पहले हमेशा किसी बड़े से पूछ लो।',
+    "card.m.tagTo": "प्रति",
+    "card.m.tagFrom": "प्रेषक",
     'card.m.noteBoth': '{to} के लिए  ·  {from} की ओर से',
     'card.m.noteTo': '{to} के लिए',
     'card.m.noteFrom': '{from} की ओर से',

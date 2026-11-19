@@ -303,6 +303,8 @@ I18N.register({
     'card.m.edit': '✏️ 编辑贺卡',
     'card.m.new': '🆕 做一张新贺卡',
     'card.m.share': '👨‍👩‍👧 在网上分享图片前，一定要先问问大人。',
+    "card.m.tagTo": "送给",
+    "card.m.tagFrom": "来自",
     'card.m.noteBoth': '送给 {to}  ·  来自 {from}',
     'card.m.noteTo': '送给 {to}',
     'card.m.noteFrom': '来自 {from}',

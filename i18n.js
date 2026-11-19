@@ -200,6 +200,7 @@
     'card.m.done': 'Your card is ready! 🎉', 'card.m.doneSub': 'Download it as a picture to print, or to send to family (ask a grown-up first!).',
     'card.m.dl': '⬇️ Download PNG', 'card.m.edit': '✏️ Edit card', 'card.m.new': '🆕 Start a new card',
     'card.m.share': '👨‍👩‍👧 Always check with a grown-up before sharing pictures online.',
+    'card.m.tagTo': 'To', 'card.m.tagFrom': 'From',
     'card.m.noteBoth': 'For {to}  ·  From {from}', 'card.m.noteTo': 'For {to}', 'card.m.noteFrom': 'From {from}',
     'card.m.scene.midnight': 'Midnight forest', 'card.m.scene.aurora': 'Northern lights', 'card.m.scene.velvet': 'Gold & velvet', 'card.m.scene.nordic': 'Nordic minimal',
     'card.m.hero.pine': 'Geometric tree', 'card.m.hero.flake': 'Snow crystal', 'card.m.hero.ornament': 'Glass bauble',

@@ -303,6 +303,8 @@ I18N.register({
     "card.m.edit": "✏️ Modifier la carte",
     "card.m.new": "🆕 Créer une nouvelle carte",
     "card.m.share": "👨‍👩‍👧 Demande toujours à un adulte avant de partager des images en ligne.",
+    "card.m.tagTo": "Pour",
+    "card.m.tagFrom": "De",
     "card.m.noteBoth": "Pour {to}  ·  De {from}",
     "card.m.noteTo": "Pour {to}",
     "card.m.noteFrom": "De {from}",

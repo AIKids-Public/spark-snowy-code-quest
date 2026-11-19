@@ -303,6 +303,8 @@ I18N.register({
     'card.m.edit': '✏️ عدّل البطاقة',
     'card.m.new': '🆕 ابدأ بطاقة جديدة',
     'card.m.share': '👨‍👩‍👧 استشر دائمًا شخصًا كبيرًا قبل مشاركة الصور على الإنترنت.',
+    "card.m.tagTo": "إلى",
+    "card.m.tagFrom": "من",
     'card.m.noteBoth': 'إلى {to}  ·  من {from}',
     'card.m.noteTo': 'إلى {to}',
     'card.m.noteFrom': 'من {from}',
