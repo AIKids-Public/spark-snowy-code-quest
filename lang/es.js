@@ -14,6 +14,7 @@ I18N.register({
     'music.off': '🎵 Música desactivada',
     'music.title': 'Escuchar una canción navideña tranquila',
     'lang.label': 'Idioma',
+    "aikids.link": "Visita la web de AIKids (se abre en una pestaña nueva)",
     'alt.spark': 'Spark, un simpático robot azul leyendo un libro',
     'voice.none': 'La ayuda hablada no está disponible en este idioma en este dispositivo.',
     'tier.ages': 'Edades {ages}',

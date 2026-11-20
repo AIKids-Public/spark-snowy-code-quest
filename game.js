@@ -829,6 +829,7 @@
     $('.topbar h1').textContent = t('app.title');
     $('#homeBtn').textContent = t('btn.home');
     $('#musicBtn').title = t('music.title');
+    const ak = $('.topbar .aikids'); if (ak) { ak.title = t('aikids.link'); ak.setAttribute('aria-label', t('aikids.link')); }
     drawSoundBtn();
     if (window.SparkMusic) SparkMusic.relabel();
     const sel = $('#langSel'); if (sel) { sel.value = I18N.lang; sel.setAttribute('aria-label', t('lang.label')); }

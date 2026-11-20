@@ -14,6 +14,7 @@ I18N.register({
     "music.off": "🎵 Musique coupée",
     "music.title": "Jouer une douce chanson de fêtes",
     "lang.label": "Langue",
+    "aikids.link": "Visiter le site d'AIKids (s'ouvre dans un nouvel onglet)",
     "alt.spark": "Spark, un gentil robot bleu qui lit un livre",
     "voice.none": "L'aide vocale n'est pas disponible dans cette langue sur cet appareil.",
     "tier.ages": "{ages} ans",

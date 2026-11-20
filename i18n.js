@@ -8,6 +8,7 @@
     'btn.sound': '🔊 Sound', 'btn.muted': '🔇 Muted', 'btn.home': '🏠 Home',
     'music.on': '🎵 Music on', 'music.off': '🎵 Music off', 'music.title': 'Play a calm holiday song',
     'lang.label': 'Language',
+    'aikids.link': 'Visit the AIKids website (opens in a new tab)',
     'alt.spark': 'Spark, a friendly blue robot reading a book',
     'voice.none': 'Spoken help isn\'t available in this language on this device.',
 

@@ -34,6 +34,9 @@
   .topbar .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   .aikids { display: block; background: #fff; border-radius: 14px; padding: 6px 14px; box-shadow: 0 4px 14px rgba(0,0,0,.3); line-height: 0; }
   .aikids img { height: 30px; width: auto; display: block; }
+  a.aikids { transition: transform .15s, box-shadow .15s; }
+  a.aikids:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  a.aikids:focus-visible { outline: 3px solid #ffd23f; outline-offset: 3px; }
   @media (max-width: 900px) {
     .topbar { grid-template-columns: 1fr auto; }
     .topbar .aikids { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
@@ -472,7 +475,7 @@
       <img src="spark.png" alt="">
       <h1>Spark's Snowy Code Quest</h1>
     </div>
-    <span class="aikids"><img src="aikids-logo.png" alt="AIKids"></span>
+    <a class="aikids" href="https://ai-kids.uk/" target="_blank" rel="noopener" title="Visit the AIKids website (opens in a new tab)"><img src="aikids-logo.png" alt="AIKids"></a>
     <div class="actions">
       <label class="pill langpick" title="Language"><span aria-hidden="true">🌐</span><select id="langSel" aria-label="Language"></select></label>
       <button class="pill music" id="musicBtn" aria-pressed="false" title="Play a calm holiday song">🎵 Music off</button>

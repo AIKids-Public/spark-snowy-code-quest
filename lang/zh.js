@@ -14,6 +14,7 @@ I18N.register({
     'music.off': '🎵 音乐关',
     'music.title': '播放一首轻柔的节日歌曲',
     'lang.label': '语言',
+    "aikids.link": "访问 AIKids 网站（在新标签页中打开）",
     'alt.spark': 'Spark，一个正在看书的友好蓝色机器人',
     'voice.none': '这台设备暂不支持用这种语言朗读。',
     'tier.ages': '{ages} 岁',
